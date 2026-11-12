@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:installLocation="internalOnly"
-    android:sharedUserId="${TERMUX_PACKAGE_NAME}"
-    android:sharedUserLabel="@string/shared_user_label">
+    android:installLocation="internalOnly">
 
     <uses-feature
         android:name="android.hardware.touchscreen"
@@ -36,6 +34,13 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+
+    <!-- Permissions used by the embedded Termux:API implementation. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
 
     <application
         android:name=".app.TermuxApplication"
@@ -94,6 +99,15 @@
             android:label="@string/application_name"
             android:parentActivityName=".app.TermuxActivity"
             android:resizeableActivity="true"
+            tools:targetApi="n" />
+
+        <!-- UbuntuTerm: first run installation of the Ubuntu guest. -->
+        <activity
+            android:name=".app.ubuntu.UbuntuInstallerActivity"
+            android:exported="false"
+            android:label="@string/ubuntu_installer_title"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxActivity.DayNight.NoActionBar"
             tools:targetApi="n" />
 
         <activity
@@ -190,6 +204,62 @@
 
         <receiver
             android:name=".shared.activities.ReportActivity$ReportActivityBroadcastReceiver"
+            android:exported="false" />
+
+        <!--
+            UbuntuTerm: the Termux:API implementation is embedded into the main application, so
+            no separate Termux:API application has to be installed.
+        -->
+        <receiver
+            android:name=".api.TermuxApiReceiver"
+            android:exported="false" />
+
+        <activity
+            android:name=".api.activities.TermuxApiPermissionActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <activity
+            android:name=".api.apis.DialogAPI$DialogActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@style/DialogTheme" />
+
+        <activity
+            android:name=".api.apis.SAFAPI$SAFActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@style/Theme.AppCompat.Light" />
+
+        <provider
+            android:name=".api.apis.ShareAPI$ContentProvider"
+            android:authorities="${TERMUX_PACKAGE_NAME}.sharedfiles"
+            android:exported="true"
+            android:grantUriPermissions="true" />
+
+        <service
+            android:name=".api.apis.JobSchedulerAPI$JobSchedulerService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <service
+            android:name=".api.apis.MediaPlayerAPI$MediaPlayerService"
+            android:exported="false" />
+
+        <service
+            android:name=".api.apis.SensorAPI$SensorReaderService"
+            android:exported="false" />
+
+        <service
+            android:name=".api.apis.TextToSpeechAPI$TextToSpeechService"
+            android:exported="false" />
+
+        <service
+            android:name=".api.apis.WallpaperAPI$WallpaperService"
             android:exported="false" />
 
 

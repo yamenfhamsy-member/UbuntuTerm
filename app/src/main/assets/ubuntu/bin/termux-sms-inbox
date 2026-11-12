@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo "termux-sms-inbox: This script has been replaced by termux-sms-list."
+exit 1
