@@ -20,7 +20,7 @@ report (`final-output/reports/`) and in the Telegram status message.
 
 ## Result of the last build
 
-Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/43319721828>
+Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/43325123083>
 
 | Check | Result |
 |---|---|
@@ -36,8 +36,8 @@ Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/433
 | No Termux bootstrap inside the APK | Pass (import from the device storage) |
 | Telegram delivery (`sendDocument` and `sendMessage`) | Pass |
 
-APK: `UbuntuTerm-arm64-v8a.apk`, 28,108,434 bytes,
-SHA-256 `e46a72da34e87508ae479ee59d63663918a1ba991b01b4c2b31939a6fbbdc299`.
+APK: `UbuntuTerm-arm64-v8a.apk`, 28,231,610 bytes,
+SHA-256 `913097eb65bd98876b31d46c8243a4f6c0788cfd657020a422285b0f49ad1870`.
 
 The bootstrap that has to be imported on the device is published as the artifact
 `bootstrap-aarch64` of the run
