@@ -20,7 +20,7 @@ report (`final-output/reports/`) and in the Telegram status message.
 
 ## Result of the last build
 
-Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/43308960630>
+Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/43319721828>
 
 | Check | Result |
 |---|---|
@@ -33,10 +33,16 @@ Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/433
 | `native-code: 'arm64-v8a'` | Pass |
 | APK signature (v2 scheme) | Pass (test key) |
 | Bundled Ubuntu rootfs (`assets/ubuntu/ubuntu-base-26.04.1-base-arm64.tar.xz`) | Present |
+| No Termux bootstrap inside the APK | Pass (import from the device storage) |
 | Telegram delivery (`sendDocument` and `sendMessage`) | Pass |
 
-APK: `UbuntuTerm-arm64-v8a.apk`, 50,041,391 bytes,
-SHA-256 `b3b01d007c399c3a85668c89a3aa31008684d5592d2ebb92e66f35640d1e550c`.
+APK: `UbuntuTerm-arm64-v8a.apk`, 28,108,434 bytes,
+SHA-256 `e46a72da34e87508ae479ee59d63663918a1ba991b01b4c2b31939a6fbbdc299`.
+
+The bootstrap that has to be imported on the device is published as the artifact
+`bootstrap-aarch64` of the run
+<https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/43308960630>
+(33,221,845 bytes, built for `com.ubutumerm.app`).
 
 ## Layer 2 – application tests (require a device or emulator)
 

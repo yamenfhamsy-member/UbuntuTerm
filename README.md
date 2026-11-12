@@ -37,7 +37,18 @@ Everything runs **without root**: the Ubuntu guest is a userspace (glibc) system
 * The **Termux bootstrap is not part of the APK** (it has to match the application id of the
   fork). On the first start the application asks for a `bootstrap-aarch64.zip` file and installs
   the archive that the user selects from the storage of the device into the application prefix
-  directory.
+  directory. The matching bootstrap is published as the artifact `bootstrap-aarch64` of the
+  build run <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/43308960630> and
+  was sent to the Telegram channel of the project.
+
+## First start
+
+1. Install `UbuntuTerm-arm64-v8a.apk`.
+2. Open the application: the screen **استيراد البوتستراب** appears.
+3. Press **اختر ملف البوتستراب** and select `bootstrap-aarch64.zip` from the downloads.
+4. The application installs the bootstrap and then unpacks the Ubuntu guest that is bundled
+   inside the APK.
+5. The terminal opens directly in Ubuntu, the copyright notice is printed for every session.
 * `apt` works inside the guest: `apt-get update`, `apt-get install python3 git curl
   ca-certificates`, `apt-get check`, `dpkg --audit`, `dpkg --print-architecture` → `arm64`.
 * User data survives APK updates: the guest home directory is the application home directory
