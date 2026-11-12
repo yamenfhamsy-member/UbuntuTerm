@@ -17,6 +17,11 @@
         android:label="@string/permission_run_command_label"
         android:protectionLevel="dangerous" />
 
+    <!-- Permission for the file share content provider of the embedded Termux:API. -->
+    <permission
+        android:name="${TERMUX_PACKAGE_NAME}.sharedfiles.READ_WRITE"
+        android:protectionLevel="signature" />
+
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
@@ -239,7 +244,8 @@
             android:name=".api.apis.ShareAPI$ContentProvider"
             android:authorities="${TERMUX_PACKAGE_NAME}.sharedfiles"
             android:exported="true"
-            android:grantUriPermissions="true" />
+            android:grantUriPermissions="true"
+            android:permission="${TERMUX_PACKAGE_NAME}.sharedfiles.READ_WRITE" />
 
         <service
             android:name=".api.apis.JobSchedulerAPI$JobSchedulerService"

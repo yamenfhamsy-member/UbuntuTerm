@@ -36,8 +36,11 @@ public class UbuntuGuestSetup {
         UbuntuRootFsManager.mkdirs(localBin);
         UbuntuRootFsManager.mkdirs(localLib);
 
-        // Termux:API client implementation.
+        // Termux:API client implementation. The dispatcher selects the Perl implementation
+        // (Perl is part of the Ubuntu base image) and falls back to Python.
         copyAsset(context, "ubuntu/termux-api", new File(localLib, "termux-api"), 0755);
+        copyAsset(context, "ubuntu/termux-api.pl", new File(localLib, "termux-api.pl"), 0755);
+        copyAsset(context, "ubuntu/termux-api.py", new File(localLib, "termux-api.py"), 0755);
 
         // Termux:API command wrappers (upstream scripts, adapted to the guest paths).
         AssetManager assets = context.getAssets();

@@ -228,6 +228,14 @@ jobs:
           rm -rf "$SLIM_DIR/include" "$SLIM_DIR/share/doc" "$SLIM_DIR/share/man" \
                  "$SLIM_DIR/share/info" "$SLIM_DIR/share/misc"
 
+          # Drop the symlink definitions that point into the removed directories, so that no
+          # dangling symlinks are created during the bootstrap installation.
+          if [ -f "$SLIM_DIR/SYMLINKS.txt" ]; then
+            grep -vE '←\./(include|share/doc|share/man|share/info|share/misc)/' \
+              "$SLIM_DIR/SYMLINKS.txt" > "$SLIM_DIR/SYMLINKS.txt.new" || true
+            mv "$SLIM_DIR/SYMLINKS.txt.new" "$SLIM_DIR/SYMLINKS.txt"
+          fi
+
           rm -f output/bootstrap-aarch64-slim.zip
           (cd "$SLIM_DIR" && zip -r9 ../output/bootstrap-aarch64-slim.zip ./* > /dev/null)
           ls -lh output/bootstrap-aarch64-slim.zip
