@@ -166,6 +166,12 @@ android {
         }
     }
 
+    tasks.withType(Test) {
+        testLogging {
+            events "started", "passed", "skipped", "failed"
+        }
+    }
+
     packagingOptions {
         jniLibs {
             useLegacyPackaging true
