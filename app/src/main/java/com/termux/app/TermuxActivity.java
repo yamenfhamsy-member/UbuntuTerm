@@ -403,6 +403,15 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         if (mTermuxService.isTermuxSessionsEmpty()) {
             if (mIsVisible) {
+                // UbuntuTerm: the host runtime (the Termux bootstrap with PRoot) is not part of
+                // the APK. The bootstrap is imported by the user from the device storage, so the
+                // import screen is opened before anything is installed.
+                if (!UbuntuSessionLauncher.isHostRuntimeReady()) {
+                    Logger.logInfo(LOG_TAG, "No bootstrap installed, opening the import screen");
+                    startActivity(new Intent(TermuxActivity.this, UbuntuBootstrapImportActivity.class));
+                    return;
+                }
+
                 TermuxInstaller.setupBootstrapIfNeeded(TermuxActivity.this, () -> {
                     if (mTermuxService == null) return; // Activity might have been destroyed.
                     try {
@@ -412,14 +421,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                             // UbuntuTerm: the host (Termux) shell can be requested explicitly.
                             launchFailsafe = launchFailsafe || intent.getExtras()
                                 .getBoolean(EXTRA_UBUNTU_HOST_MODE, false);
-                        }
-
-                        // UbuntuTerm: the host runtime (the Termux bootstrap with PRoot) is not
-                        // part of the APK, the user imports it from the device storage.
-                        if (!launchFailsafe && !UbuntuSessionLauncher.isHostRuntimeReady()) {
-                            Logger.logInfo("TermuxActivity", "No bootstrap installed, opening the import screen");
-                            startActivity(new Intent(TermuxActivity.this, UbuntuBootstrapImportActivity.class));
-                            return;
                         }
 
                         // UbuntuTerm: the Ubuntu guest is the default environment, so it has to be

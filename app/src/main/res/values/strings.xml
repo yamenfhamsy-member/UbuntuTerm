@@ -264,5 +264,6 @@
     <string name="bootstrap_import_done">تم تثبيت البوتستراب</string>
     <string name="bootstrap_import_failed">فشل استيراد البوتستراب: %1$s</string>
     <string name="bootstrap_import_no_picker">لا يوجد تطبيق لاختيار الملفات على الجهاز</string>
+    <string name="bootstrap_import_incomplete">الملف المختار لا يحتوي على بوتستراب صالح (لا يوجد proot). اختر bootstrap-aarch64.zip المبني لنفس الحزمة.</string>
 
 </resources>

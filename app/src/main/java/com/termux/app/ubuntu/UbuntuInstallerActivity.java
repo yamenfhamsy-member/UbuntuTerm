@@ -116,6 +116,8 @@ public class UbuntuInstallerActivity extends Activity {
                     mStatus.setText(message);
                     if (percent >= 0)
                         mProgress.setProgress(percent);
+                    if (phase == UbuntuRootFsManager.Phase.DONE)
+                        openTerminal();
                 });
             }
 

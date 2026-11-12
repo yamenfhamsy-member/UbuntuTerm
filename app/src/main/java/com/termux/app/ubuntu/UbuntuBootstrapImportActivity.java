@@ -100,6 +100,11 @@ public class UbuntuBootstrapImportActivity extends Activity {
 
     private void onBootstrapInstalled() {
         runOnUiThread(() -> {
+            if (!UbuntuSessionLauncher.isHostRuntimeReady()) {
+                mStatus.setText(R.string.bootstrap_import_incomplete);
+                mPickButton.setEnabled(true);
+                return;
+            }
             mStatus.setText(R.string.bootstrap_import_done);
             Intent intent = new Intent(this, UbuntuInstallerActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
