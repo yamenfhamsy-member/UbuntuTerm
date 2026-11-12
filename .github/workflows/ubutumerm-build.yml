@@ -419,8 +419,6 @@ jobs:
             echo "[FAIL] No APK was produced"
             exit 1
           fi
-          echo "APK=$APK" >> "$GITHUB_OUTPUT"
-
           cp -v "$APK" "$OUT/apk/UbuntuTerm-arm64-v8a.apk"
           cp -v termux-packages/output/bootstrap-aarch64-audit.txt "$OUT/logs/" 2>/dev/null || true
           cp -v termux-packages/output/bootstrap-aarch64-build.log "$OUT/logs/" 2>/dev/null || true
@@ -469,10 +467,12 @@ jobs:
           (cd "$OUT" && find apk reports logs -type f -exec sha256sum {} + | sort -k2 > SHA256SUMS.txt)
           cat "$OUT/SHA256SUMS.txt"
 
-          echo "apk_path=$OUT/apk/UbuntuTerm-arm64-v8a.apk" >> "$GITHUB_OUTPUT"
-          echo "apk_sha256=$(sha256sum "$OUT/apk/UbuntuTerm-arm64-v8a.apk" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
-          echo "apk_size=$(stat -c%s "$OUT/apk/UbuntuTerm-arm64-v8a.apk")" >> "$GITHUB_OUTPUT"
-          echo "signed=${{ steps.signing.outputs.signed }}" >> "$GITHUB_OUTPUT"
+          {
+            echo "apk_path=$OUT/apk/UbuntuTerm-arm64-v8a.apk"
+            echo "apk_sha256=$(sha256sum "$OUT/apk/UbuntuTerm-arm64-v8a.apk" | awk '{print $1}')"
+            echo "apk_size=$(stat -c%s "$OUT/apk/UbuntuTerm-arm64-v8a.apk")"
+            echo "signed=${{ steps.signing.outputs.signed }}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Upload the UbuntuTerm APK and reports
         if: always()

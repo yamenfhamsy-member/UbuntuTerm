@@ -33,6 +33,10 @@ fail() { printf '[preflight] FAILED: %s\n' "$*" >&2; FAILED=1; }
 
 mkdir -p "$BIN_DIR" "$WORK_DIR" "$REPORT_DIR"
 
+# Make the downloaded tools visible to actionlint, which uses shellcheck for the "run:" blocks
+# of the workflows.
+export PATH="$BIN_DIR:$PATH"
+
 # --- shellcheck ---------------------------------------------------------------------------------
 
 ensure_shellcheck() {
