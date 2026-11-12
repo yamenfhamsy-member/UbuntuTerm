@@ -16,6 +16,11 @@ on:
         required: false
         default: ""
         type: string
+      update_lint_baseline:
+        description: "Regenerate the Android Lint baseline and upload it as an artifact"
+        required: false
+        default: "false"
+        type: boolean
 
 permissions:
   contents: read
@@ -366,6 +371,14 @@ jobs:
           fi
           chmod +x ./gradlew
           ./gradlew --no-daemon testReleaseUnitTest assembleRelease
+
+      - name: Regenerate the Android Lint baseline
+        if: ${{ inputs.update_lint_baseline == 'true' }}
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon :app:updateLintBaseline
+          mkdir -p final-output/reports
+          cp -f app/lint-baseline.xml final-output/reports/lint-baseline.xml
 
       - name: Static analysis with Android Lint
         run: |

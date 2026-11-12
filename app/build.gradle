@@ -147,6 +147,16 @@ android {
 
     lint {
         disable 'ProtectedPermissions'
+        // The Termux:API implementation is taken from the upstream Termux:API application,
+        // which was developed as a separate application. Its findings are recorded in the
+        // baseline, so that only new problems fail the build.
+        baseline = file("lint-baseline.xml")
+        abortOnError = true
+        warningsAsErrors = false
+        checkReleaseBuilds = false
+        textReport = true
+        xmlReport = true
+        htmlReport = true
     }
 
     testOptions {
