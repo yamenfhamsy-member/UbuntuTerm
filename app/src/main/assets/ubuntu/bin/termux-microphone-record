@@ -39,7 +39,7 @@ add_params() {
 }
 
 call_api () {
-    /usr/local/lib/ubuntuterm/termux-api MicRecorder "$@"
+    /usr/local/lib/ubutumerm/termux-api MicRecorder "$@"
 }
 
 while getopts h,f:,l:,e:,b:,r:,c:,d,i,q option

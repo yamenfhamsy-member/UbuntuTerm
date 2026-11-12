@@ -34,4 +34,4 @@ else
 fi
 
 
-/usr/local/lib/ubuntuterm/termux-api NotificationChannel $ARGS
+/usr/local/lib/ubutumerm/termux-api NotificationChannel $ARGS

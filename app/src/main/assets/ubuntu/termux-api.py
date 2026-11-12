@@ -29,7 +29,7 @@ import time
 import uuid
 
 LISTEN_ADDRESS = "\0com.ubutumerm.app.api://listen"
-CLIENT_VERSION = "0.60.0-ubuntuterm"
+CLIENT_VERSION = "0.60.0-ubutumerm"
 CONNECT_TIMEOUT = 30.0
 IO_TIMEOUT = 300.0
 

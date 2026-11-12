@@ -23,4 +23,4 @@ else
 ARGS="--ei brightness $1 --ez auto false"
 fi
 
-/usr/local/lib/ubuntuterm/termux-api Brightness $ARGS
+/usr/local/lib/ubutumerm/termux-api Brightness $ARGS

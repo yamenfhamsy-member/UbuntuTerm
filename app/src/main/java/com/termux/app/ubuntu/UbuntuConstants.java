@@ -50,13 +50,13 @@ public class UbuntuConstants {
     public static final String STAMP_FILE = UBUNTU_TERM_DIR + "/rootfs.stamp";
 
     /** Marker file written inside the rootfs once the guest is prepared. */
-    public static final String GUEST_MARKER_FILE = ROOTFS_DIR + "/.ubuntuterm-prepared";
+    public static final String GUEST_MARKER_FILE = ROOTFS_DIR + "/.ubutumerm-prepared";
 
     /** Directory inside the guest holding the Termux:API client wrappers. */
     public static final String GUEST_BIN_DIR = ROOTFS_DIR + "/usr/local/bin";
 
     /** Directory inside the guest holding the Termux:API client implementation. */
-    public static final String GUEST_LIB_DIR = ROOTFS_DIR + "/usr/local/lib/ubuntuterm";
+    public static final String GUEST_LIB_DIR = ROOTFS_DIR + "/usr/local/lib/ubutumerm";
 
     /** Path of the host side PRoot binary (part of the Termux bootstrap). */
     public static final String PROOT_BINARY = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/proot";

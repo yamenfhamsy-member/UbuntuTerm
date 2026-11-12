@@ -51,7 +51,7 @@ else
     fi
 fi
 
-CMD="/usr/local/lib/ubuntuterm/termux-api Usb -a $ACTION $PARAMS"
+CMD="/usr/local/lib/ubutumerm/termux-api Usb -a $ACTION $PARAMS"
 
 if [[ "$ACTION" == "list" ]]; then
     $CMD

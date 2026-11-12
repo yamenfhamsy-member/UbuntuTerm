@@ -19,4 +19,4 @@ shift $((OPTIND-1))
 
 if [ $# != 1 ]; then echo "$SCRIPTNAME: no notification id specified"; exit 1; fi
 
-/usr/local/lib/ubuntuterm/termux-api NotificationRemove --es id "$1"
+/usr/local/lib/ubutumerm/termux-api NotificationRemove --es id "$1"

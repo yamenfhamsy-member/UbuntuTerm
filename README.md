@@ -66,7 +66,7 @@ The APK is **only** built by GitHub Actions, see [docs/BUILDING.md](docs/BUILDIN
 git clone https://github.com/yamenfhamsy-member/UbuntuTerm.git
 cd UbuntuTerm
 # push a commit or run the workflow manually:
-gh workflow run ubuntuterm-build.yml --repo yamenfhamsy-member/UbuntuTerm
+gh workflow run ubutumerm-build.yml --repo yamenfhamsy-member/UbuntuTerm
 ```
 
 The workflow produces one artifact: `UbuntuTerm-arm64-v8a.apk` together with the verification

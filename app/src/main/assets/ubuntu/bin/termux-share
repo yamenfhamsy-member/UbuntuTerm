@@ -48,7 +48,7 @@ if [ $# != 0 ]; then
     fi
 
     # Note that the file path can contain whitespace.
-    /usr/local/lib/ubuntuterm/termux-api Share $PARAMS --es file "$(realpath "$1")"
+    /usr/local/lib/ubutumerm/termux-api Share $PARAMS --es file "$(realpath "$1")"
 else
-    /usr/local/lib/ubuntuterm/termux-api Share $PARAMS
+    /usr/local/lib/ubutumerm/termux-api Share $PARAMS
 fi

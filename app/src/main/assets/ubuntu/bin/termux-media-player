@@ -15,7 +15,7 @@ show_usage () {
 }
 
 main() {
-    /usr/local/lib/ubuntuterm/termux-api MediaPlayer "$@"
+    /usr/local/lib/ubutumerm/termux-api MediaPlayer "$@"
 }
 
 case "$1" in

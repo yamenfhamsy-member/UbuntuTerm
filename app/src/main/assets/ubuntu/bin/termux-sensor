@@ -69,7 +69,7 @@ get_limit () {
 }
 
 call_api () {
-	/usr/local/lib/ubuntuterm/termux-api Sensor "$@"
+	/usr/local/lib/ubutumerm/termux-api Sensor "$@"
 }
 
 set_flag () {

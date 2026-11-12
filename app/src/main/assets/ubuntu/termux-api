@@ -8,7 +8,7 @@
 
 set -u
 
-LIB_DIR="/usr/local/lib/ubuntuterm"
+LIB_DIR="/usr/local/lib/ubutumerm"
 
 for interpreter in /usr/bin/perl /usr/bin/python3; do
     if [ -x "$interpreter" ]; then

@@ -204,6 +204,27 @@ main() {
         exit 1
     fi
 
+    log "checking the build configuration"
+    local gradle="$REPO_ROOT/app/build.gradle"
+    local constants="$REPO_ROOT/termux-shared/src/main/java/com/termux/shared/termux/TermuxConstants.java"
+    local manifest="$REPO_ROOT/app/src/main/AndroidManifest.xml"
+    grep -q 'applicationId "com.ubutumerm.app"' "$gradle" \
+        || fail "the application id is not com.ubutumerm.app"
+    grep -q 'namespace "com.termux"' "$gradle" \
+        || fail "the namespace changed unexpectedly"
+    grep -q 'abiFilters "arm64-v8a"' "$gradle" \
+        || fail "the ABI filter is not arm64-v8a"
+    grep -q 'versionName "1.0.0"' "$gradle" \
+        || fail "the version name changed unexpectedly"
+    grep -q 'outputFileName = new File("UbuntuTerm-arm64-v8a.apk")' "$gradle" \
+        || fail "the APK file name changed unexpectedly"
+    grep -q 'TERMUX_PACKAGE_NAME = "com.ubutumerm.app"' "$constants" \
+        || fail "TERMUX_PACKAGE_NAME is not com.ubutumerm.app"
+    grep -q 'sharedUserId' "$manifest" \
+        && fail "the manifest still declares a sharedUserId"
+    grep -q 'com.ubutumerm.app.api://listen' "$REPO_ROOT/app/src/main/assets/ubuntu/termux-api.pl" \
+        || fail "the API client does not use the UbuntuTerm socket address"
+
     log "checking the guest side scripts"
     local script_error=0
     for script in "$REPO_ROOT"/app/src/main/assets/ubuntu/bin/*; do

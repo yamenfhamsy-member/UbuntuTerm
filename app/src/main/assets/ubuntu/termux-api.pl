@@ -31,7 +31,7 @@ use constant SOL_SOCKET => 1;
 use constant SO_PEERCRED => 17;
 
 my $LISTEN_ADDRESS = "com.ubutumerm.app.api://listen";
-my $CLIENT_VERSION = "0.60.0-ubuntuterm";
+my $CLIENT_VERSION = "0.60.0-ubutumerm";
 my $CONNECT_TIMEOUT = 30;
 my $IO_TIMEOUT = 300;
 

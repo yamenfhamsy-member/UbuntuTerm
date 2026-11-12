@@ -27,4 +27,4 @@ if [ $# -gt 0 ]; then
     ARGS="-a set-volume --es stream $1 --ei volume $2"
 fi
 
-/usr/local/lib/ubuntuterm/termux-api Volume $ARGS
+/usr/local/lib/ubutumerm/termux-api Volume $ARGS

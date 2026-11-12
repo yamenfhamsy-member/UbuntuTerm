@@ -32,7 +32,7 @@ binary of the host prefix.
 | Rebuild the bootstrap from `termux-packages` with our package name | **Chosen**: correct, reproducible, and it allows adding PRoot |
 
 **Decision:** the bootstrap is compiled from `termux-packages` (pinned commit
-`b189a79f3b9606b108b45460a4c50756d91e2b9d`) with `patches/termux-packages-ubuntuterm.patch`,
+`b189a79f3b9606b108b45460a4c50756d91e2b9d`) with `patches/termux-packages-ubutumerm.patch`,
 which sets `TERMUX_APP__PACKAGE_NAME="com.ubutumerr.app"`, adds `proot` to the bootstrap and
 disables the official Termux apt repositories (their packages are built for the
 `com.termux` prefix and would be unusable). The build happens inside the official
@@ -126,7 +126,7 @@ SMS, no contacts, no location, no call log). See [LIMITATIONS.md](LIMITATIONS.md
 The agent/development machine must not build the APK: the Gradle caches, the Android SDK and
 the NDK would exceed the available space.
 
-**Decision:** `.github/workflows/ubuntuterm-build.yml` performs every build step: bootstrap
+**Decision:** `.github/workflows/ubutumerm-build.yml` performs every build step: bootstrap
 compilation, Ubuntu asset preparation, Gradle build, verification, artifact upload and the
 Telegram delivery.
 

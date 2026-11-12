@@ -6,7 +6,7 @@
 
 ## Workflow
 
-`.github/workflows/ubuntuterm-build.yml`
+`.github/workflows/ubutumerm-build.yml`
 
 | Job | Purpose |
 |---|---|
@@ -48,7 +48,7 @@ notification), `workflow_dispatch`.
 ## Running the workflow manually
 
 ```bash
-gh workflow run ubuntuterm-build.yml --repo yamenfhamsy-member/UbuntuTerm
+gh workflow run ubutumerm-build.yml --repo yamenfhamsy-member/UbuntuTerm
 gh run list --repo yamenfhamsy-member/UbuntuTerm
 ```
 

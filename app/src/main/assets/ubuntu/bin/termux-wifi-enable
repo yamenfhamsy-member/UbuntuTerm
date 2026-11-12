@@ -18,4 +18,4 @@ case $1 in
         *) show_usage;;
 esac
 
-/usr/local/lib/ubuntuterm/termux-api WifiEnable --ez enabled "$1"
+/usr/local/lib/ubutumerm/termux-api WifiEnable --ez enabled "$1"

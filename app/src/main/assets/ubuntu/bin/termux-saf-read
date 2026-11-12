@@ -22,5 +22,5 @@ shift $((OPTIND-1))
 
 if [ $# != 1 ]; then echo "$SCRIPTNAME: Invalid argument count"; exit 1; fi
 
-/usr/local/lib/ubuntuterm/termux-api SAF --es safmethod readDocument --es uri "$1"
+/usr/local/lib/ubutumerm/termux-api SAF --es safmethod readDocument --es uri "$1"
  

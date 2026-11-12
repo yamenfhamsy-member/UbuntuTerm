@@ -32,7 +32,7 @@ do
 done
 shift $((OPTIND-1))
 
-CMD="/usr/local/lib/ubuntuterm/termux-api Toast $PARAMS"
+CMD="/usr/local/lib/ubutumerm/termux-api Toast $PARAMS"
 
 # If toast text was not passed as an argument, then attempt to read from STDIN with a 3s timeout
 # Toast text arguments takes precedence over STDIN

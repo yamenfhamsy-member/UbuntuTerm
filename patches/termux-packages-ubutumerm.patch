@@ -47,7 +47,7 @@ index d324992..35adc54 100644
 +		> "$TERMUX_PREFIX/var/local-repo/dists/stable/main/binary-$TERMUX_ARCH/Packages.gz"
 +	cat <<-RELEASE_EOF > "$TERMUX_PREFIX/var/local-repo/dists/stable/Release"
 +	Origin: UbuntuTerm (${TERMUX_APP__PACKAGE_NAME})
-+	Label: ubuntuterm-local
++	Label: ubutumerm-local
 +	Suite: stable
 +	Codename: stable
 +	Architectures: ${TERMUX_ARCH} all
@@ -418,7 +418,7 @@ index 53b8797..71d447e 100644
  # Default value: `com.termux`
  ##
 -TERMUX_APP__PACKAGE_NAME="com.termux"
-+TERMUX_APP__PACKAGE_NAME="com.ubuntuterm.app"
++TERMUX_APP__PACKAGE_NAME="com.ubutumerm.app"
  TERMUX_APP_PACKAGE="$TERMUX_APP__PACKAGE_NAME" # Deprecated alternative variable for `TERMUX_APP__PACKAGE_NAME`
  
  __termux_build_props__add_variables_validator_actions "TERMUX_APP__PACKAGE_NAME" "app_package_name"
@@ -427,7 +427,7 @@ index 53b8797..71d447e 100644
  # Default value: `com.termux.api`
  ##
 -TERMUX_API_APP__PACKAGE_NAME="com.termux.api"
-+TERMUX_API_APP__PACKAGE_NAME="com.ubuntuterm.app.api"
++TERMUX_API_APP__PACKAGE_NAME="com.ubutumerm.app.api"
  
  __termux_build_props__add_variables_validator_actions "TERMUX_API_APP__PACKAGE_NAME" "app_package_name"
  
@@ -436,11 +436,11 @@ index 53b8797..71d447e 100644
  
  # Path to CGCT tools
 -CGCT_DEFAULT_PREFIX="/data/data/com.termux/files/usr/glibc"
-+CGCT_DEFAULT_PREFIX="/data/data/com.ubuntuterm.app/files/usr/glibc"
++CGCT_DEFAULT_PREFIX="/data/data/com.ubutumerm.app/files/usr/glibc"
  __termux_build_props__add_variables_validator_actions "CGCT_DEFAULT_PREFIX" "safe_absolute_path invalid_termux_prefix_paths"
  
 -export CGCT_DIR="/data/data/com.termux/cgct"
-+export CGCT_DIR="/data/data/com.ubuntuterm.app/cgct"
++export CGCT_DIR="/data/data/com.ubutumerm.app/cgct"
  __termux_build_props__add_variables_validator_actions "CGCT_DIR" "safe_absolute_path invalid_termux_prefix_paths"
  
  # Allow to override setup.
@@ -467,9 +467,9 @@ index a20a22e..f194da9 100755
  		$TERMUX_BUILDER_IMAGE_NAME
  	__change_builder_uid_gid
  	__change_container_pid_max
-+	$SUDO docker exec $CONTAINER_NAME sudo mkdir -p /data/data/com.ubuntuterm.app /data/data/.built-packages
-+	$SUDO docker exec $CONTAINER_NAME sudo chown -R builder:builder /data/data/com.ubuntuterm.app /data/data/.built-packages
-+	$SUDO docker exec $CONTAINER_NAME sudo ln -sfn /data/data/com.ubuntuterm.app/aosp /system
++	$SUDO docker exec $CONTAINER_NAME sudo mkdir -p /data/data/com.ubutumerm.app /data/data/.built-packages
++	$SUDO docker exec $CONTAINER_NAME sudo chown -R builder:builder /data/data/com.ubutumerm.app /data/data/.built-packages
++	$SUDO docker exec $CONTAINER_NAME sudo ln -sfn /data/data/com.ubutumerm.app/aosp /system
  	load_apparmor_profile ./scripts/profile-restricted.apparmor "Loading restricted AppArmor profile"
  fi
  

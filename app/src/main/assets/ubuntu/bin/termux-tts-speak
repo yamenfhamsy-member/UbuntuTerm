@@ -40,7 +40,7 @@ do
 done
 shift $((OPTIND-1))
 
-CMD="/usr/local/lib/ubuntuterm/termux-api TextToSpeech $PARAMS"
+CMD="/usr/local/lib/ubutumerm/termux-api TextToSpeech $PARAMS"
 if [ $# = 0 ]; then
     $CMD
 else

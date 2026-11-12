@@ -25,4 +25,4 @@ else
 	show_usage
 fi
 
-/usr/local/lib/ubuntuterm/termux-api Torch $PARAMS
+/usr/local/lib/ubutumerm/termux-api Torch $PARAMS

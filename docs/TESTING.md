@@ -71,7 +71,7 @@ the CI environment; the runtime verification on a device is part of the manual t
 
 ```bash
 # build and verification (GitHub Actions)
-gh workflow run ubuntuterm-build.yml --repo yamenfhamsy-member/UbuntuTerm
+gh workflow run ubutumerm-build.yml --repo yamenfhamsy-member/UbuntuTerm
 gh run watch --repo yamenfhamsy-member/UbuntuTerm
 
 # inside the guest, after installing the APK on a device

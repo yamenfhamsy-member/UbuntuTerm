@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ubuntuterm-${{ github.workflow }}-${{ github.ref }}
+  group: ubutumerm-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -89,7 +89,7 @@ jobs:
           set -euo pipefail
           docker pull ghcr.io/termux/package-builder:latest
           docker run -d --init \
-            --name ubuntuterm-builder \
+            --name ubutumerm-builder \
             --cap-add CAP_SYS_ADMIN \
             --cap-add SYS_PTRACE \
             --device /dev/fuse \
@@ -104,15 +104,15 @@ jobs:
           RUNNER_UID="$(id -u)"
           RUNNER_GID="$(id -g)"
           if [ "$RUNNER_UID" != "1001" ]; then
-            docker exec -u 0 ubuntuterm-builder usermod -u "$RUNNER_UID" builder
-            docker exec -u 0 ubuntuterm-builder groupmod -g "$RUNNER_GID" builder
-            docker exec -u 0 ubuntuterm-builder chown -R "$RUNNER_UID:$RUNNER_GID" /home/builder /data
+            docker exec -u 0 ubutumerm-builder usermod -u "$RUNNER_UID" builder
+            docker exec -u 0 ubutumerm-builder groupmod -g "$RUNNER_GID" builder
+            docker exec -u 0 ubutumerm-builder chown -R "$RUNNER_UID:$RUNNER_GID" /home/builder /data
           fi
 
-          docker exec -u 0 ubuntuterm-builder bash -c '
-            mkdir -p /data/data/com.ubuntuterm.app /data/data/.built-packages
-            chown -R builder:builder /data/data/com.ubuntuterm.app /data/data/.built-packages
-            ln -sfn /data/data/com.ubuntuterm.app/aosp /system
+          docker exec -u 0 ubutumerm-builder bash -c '
+            mkdir -p /data/data/com.ubutumerm.app /data/data/.built-packages
+            chown -R builder:builder /data/data/com.ubutumerm.app /data/data/.built-packages
+            ln -sfn /data/data/com.ubutumerm.app/aosp /system
             sysctl -w kernel.pid_max=65535 || echo 65535 > /proc/sys/kernel/pid_max || true
           '
 
@@ -130,7 +130,7 @@ jobs:
           TAIL_PID=$!
           trap 'kill "$TAIL_PID" 2>/dev/null || true' EXIT
 
-          docker exec -e CI=true -u builder -w /home/builder/termux-packages ubuntuterm-builder \
+          docker exec -e CI=true -u builder -w /home/builder/termux-packages ubutumerm-builder \
             bash -c '
               exec </dev/null >output/bootstrap-aarch64-build.log 2>&1
               ./scripts/build-bootstraps.sh --architectures aarch64
@@ -141,7 +141,7 @@ jobs:
 
           sleep 2
           kill "$TAIL_PID" 2>/dev/null || true
-          docker rm -f ubuntuterm-builder >/dev/null 2>&1 || true
+          docker rm -f ubutumerm-builder >/dev/null 2>&1 || true
           ls -lh output/bootstrap-aarch64.zip
 
       - name: Upload the compiled custom bootstrap
@@ -224,11 +224,11 @@ jobs:
 
             echo ""
             echo "--- UbuntuTerm prefix check ---"
-            if ! strings "$AUDIT_DIR/bin/proot" | grep -q "/data/data/com.ubuntuterm.app/files/usr"; then
+            if ! strings "$AUDIT_DIR/bin/proot" | grep -q "/data/data/com.ubutumerm.app/files/usr"; then
               echo "[FAIL] proot does not reference the UbuntuTerm prefix"
               exit 1
             fi
-            echo "[PASS] proot references /data/data/com.ubuntuterm.app/files/usr"
+            echo "[PASS] proot references /data/data/com.ubutumerm.app/files/usr"
 
             echo ""
             echo "--- Zero contamination scan across scripts, shebangs, configs and SYMLINKS.txt ---"
@@ -329,8 +329,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "${UBUNTUTERM_KEYSTORE_BASE64:-}" ]; then
-            echo "$UBUNTUTERM_KEYSTORE_BASE64" | base64 -d > /tmp/ubuntuterm-release.jks
-            echo "keystore=/tmp/ubuntuterm-release.jks" >> "$GITHUB_OUTPUT"
+            echo "$UBUNTUTERM_KEYSTORE_BASE64" | base64 -d > /tmp/ubutumerm-release.jks
+            echo "keystore=/tmp/ubutumerm-release.jks" >> "$GITHUB_OUTPUT"
             echo "signed=release" >> "$GITHUB_OUTPUT"
             echo "[INFO] A release keystore was provided: the APK will be signed with it."
           else
@@ -352,6 +352,42 @@ jobs:
           fi
           chmod +x ./gradlew
           ./gradlew --no-daemon testReleaseUnitTest assembleRelease
+
+      - name: Static analysis with Android Lint
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon :app:lintRelease
+          mkdir -p final-output/reports
+          cp -f app/build/reports/lint-results-release.html final-output/reports/ 2>/dev/null || true
+          cp -f app/build/reports/lint-results-release.txt final-output/reports/ 2>/dev/null || true
+
+      - name: Static analysis with detekt and ktlint
+        run: |
+          set -euo pipefail
+          if [ -z "$(find . -name '*.kt' -not -path './.git/*' -not -path './tools/.cache/*' -print -quit)" ]; then
+            echo "This repository contains no Kotlin sources, detekt and ktlint have nothing to report."
+            echo "They are part of the pipeline so that Kotlin code is checked automatically."
+            exit 0
+          fi
+
+          echo "Running detekt"
+          DETEKT_VERSION=1.23.7
+          curl -fsSL --retry 3 -o /tmp/detekt.zip \
+            "https://github.com/detekt/detekt/releases/download/v${DETEKT_VERSION}/detekt-cli-${DETEKT_VERSION}.zip"
+          rm -rf /tmp/detekt && unzip -q /tmp/detekt.zip -d /tmp/detekt
+          java -jar /tmp/detekt/detekt-cli-${DETEKT_VERSION}-all.jar \
+            --input . --build-upon-default-config --report xml:detekt-report.xml \
+            --report txt:detekt-report.txt || DETEKT_FAILED=1
+          mkdir -p final-output/reports
+          cp -f detekt-report.* final-output/reports/ 2>/dev/null || true
+          [ "${DETEKT_FAILED:-0}" = "0" ] || { echo "[FAIL] detekt reported findings"; exit 1; }
+
+          echo "Running ktlint"
+          KTLINT_VERSION=1.5.0
+          curl -fsSL --retry 3 -o /tmp/ktlint \
+            "https://github.com/pinterest/ktlint/releases/download/${KTLINT_VERSION}/ktlint"
+          chmod +x /tmp/ktlint
+          /tmp/ktlint "**/*.kt" || { echo "[FAIL] ktlint reported findings"; exit 1; }
 
       - name: Collect, inspect and sign-verify the APK
         id: collect
@@ -388,7 +424,7 @@ jobs:
             echo ""
             echo "--- Package identity ---"
             grep -E "^package:" "$OUT/reports/badging.txt"
-            grep -q "name='com.ubuntuterm.app'" "$OUT/reports/badging.txt" || { echo "[FAIL] Wrong package id"; exit 1; }
+            grep -q "name='com.ubutumerm.app'" "$OUT/reports/badging.txt" || { echo "[FAIL] Wrong package id"; exit 1; }
             echo "[PASS] package id is com.ubutumerm.app"
             grep -q "application-label:'UbuntuTerm'" "$OUT/reports/badging.txt" || { echo "[FAIL] Wrong application label"; exit 1; }
             echo "[PASS] application label is UbuntuTerm"

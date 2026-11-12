@@ -212,4 +212,4 @@ fi
 # Trim trailing newlines
 OPT_CONTENT="$(echo "$OPT_CONTENT")"
 
-echo "$OPT_CONTENT" | /usr/local/lib/ubuntuterm/termux-api Notification "$@"
+echo "$OPT_CONTENT" | /usr/local/lib/ubutumerm/termux-api Notification "$@"

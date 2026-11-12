@@ -27,7 +27,7 @@ if [ -z "$RECIPIENTS" ]; then
     echo "$SCRIPTNAME: no recipient number given"; exit 1;
 fi
 
-CMD="/usr/local/lib/ubuntuterm/termux-api SmsSend $RECIPIENTS $SLOT"
+CMD="/usr/local/lib/ubutumerm/termux-api SmsSend $RECIPIENTS $SLOT"
 if [ $# = 0 ]; then
     $CMD
 else

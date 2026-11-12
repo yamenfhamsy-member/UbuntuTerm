@@ -32,7 +32,7 @@ public class UbuntuGuestSetup {
         writeNetworkConfig(context, stagingDir);
 
         File localBin = new File(stagingDir, "usr/local/bin");
-        File localLib = new File(stagingDir, "usr/local/lib/ubuntuterm");
+        File localLib = new File(stagingDir, "usr/local/lib/ubutumerm");
         UbuntuRootFsManager.mkdirs(localBin);
         UbuntuRootFsManager.mkdirs(localLib);
 
@@ -63,7 +63,7 @@ public class UbuntuGuestSetup {
         // Copyright notice: it is printed by every new login shell of the guest.
         File profileD = new File(stagingDir, "etc/profile.d");
         UbuntuRootFsManager.mkdirs(profileD);
-        File credit = new File(profileD, "ubuntuterm-credit.sh");
+        File credit = new File(profileD, "ubutumerm-credit.sh");
         writeText(credit, UbuntuConstants.buildCreditNotice());
         credit.setExecutable(true, false);
 
@@ -95,7 +95,7 @@ public class UbuntuGuestSetup {
      * Write the marker file that shows that the guest has been prepared.
      */
     public static void writeGuestMarker(File rootfsDir) throws IOException {
-        writeText(new File(rootfsDir, ".ubuntuterm-prepared"),
+        writeText(new File(rootfsDir, ".ubutumerm-prepared"),
             "ubuntu_version=" + UbuntuConstants.UBUNTU_VERSION + "\n" +
             "prepared_at=" + System.currentTimeMillis() + "\n");
     }
