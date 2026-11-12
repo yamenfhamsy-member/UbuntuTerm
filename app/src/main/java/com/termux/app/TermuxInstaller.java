@@ -201,7 +201,9 @@ public final class TermuxInstaller {
                                 BufferedReader symlinksReader = new BufferedReader(new InputStreamReader(zipInput));
                                 String line;
                                 while ((line = symlinksReader.readLine()) != null) {
-                                    String[] parts = line.split("←");
+                                    // The separator is the Unicode arrow U+2190, some bootstrap
+                                    // archives use the ASCII form "<-" instead.
+                                    String[] parts = line.split("←|<-");
                                     if (parts.length != 2)
                                         throw new RuntimeException("Malformed symlink line: " + line);
                                     String oldPath = parts[0];

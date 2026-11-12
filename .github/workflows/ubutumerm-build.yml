@@ -99,12 +99,13 @@ jobs:
           # contains a marker file and is replaced as soon as the user imports a bootstrap.
           PLACEHOLDER_DIR="$(mktemp -d)"
           cd "$PLACEHOLDER_DIR"
-          echo "ubuntuter-bootstrap-placeholder<-.ubuntuter-bootstrap-placeholder" > SYMLINKS.txt
+          # The separator of the symlink definitions is the Unicode arrow U+2190.
+          printf 'ubuntuter-bootstrap-placeholder\u2190.ubuntuter-bootstrap-placeholder\n' > SYMLINKS.txt
           echo "UbuntuTerm does not contain a Termux bootstrap. Import one from the device storage." \
-            > .ubuntuter-bootstrap-placeholder
+            > ubuntuter-bootstrap-placeholder
           mkdir -p "$GITHUB_WORKSPACE/termux-packages/output"
           zip -r9 "$GITHUB_WORKSPACE/termux-packages/output/bootstrap-aarch64.zip" \
-            SYMLINKS.txt .ubuntuter-bootstrap-placeholder > /dev/null
+            SYMLINKS.txt ubuntuter-bootstrap-placeholder > /dev/null
           rm -rf "$PLACEHOLDER_DIR"
           ls -lh "$GITHUB_WORKSPACE/termux-packages/output/bootstrap-aarch64.zip"
 
