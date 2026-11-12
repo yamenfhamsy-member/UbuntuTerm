@@ -52,7 +52,7 @@ public class UbuntuGuestSetup {
         }
 
         // Release information inside the guest.
-        writeText(new File(stagingDir, "etc/ubunturterm-release"),
+        writeText(new File(stagingDir, "etc/ubunturerm-release"),
             "UbuntuTerm guest\n" +
             "ubuntu_version=" + UbuntuConstants.UBUNTU_VERSION + "\n" +
             "ubuntu_codename=" + UbuntuConstants.UBUNTU_CODENAME + "\n" +
