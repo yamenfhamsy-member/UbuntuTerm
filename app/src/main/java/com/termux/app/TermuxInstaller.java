@@ -27,6 +27,8 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,7 +59,7 @@ import static com.termux.shared.termux.TermuxConstants.TERMUX_STAGING_PREFIX_DIR
  * <p/>
  * (5.2) For every other zip entry, extract it into $STAGING_PREFIX and set execute permissions if necessary.
  */
-final class TermuxInstaller {
+public final class TermuxInstaller {
 
     private static final String LOG_TAG = "TermuxInstaller";
 
@@ -114,6 +116,42 @@ final class TermuxInstaller {
             Logger.logInfo(LOG_TAG, "The termux prefix directory \"" + TERMUX_PREFIX_DIR_PATH + "\" does not exist but another file exists at its destination.");
         }
 
+        installBootstrapBytes(activity, loadZipBytes(), whenDone);
+    }
+
+    /**
+     * Installs a bootstrap from a zip file that the user selected, for example from the
+     * storage of the device.
+     *
+     * @param activity the activity
+     * @param zipFile  the bootstrap zip file
+     * @param whenDone run after the installation finished
+     */
+    public static void installBootstrapFromFile(final Activity activity, final File zipFile, final Runnable whenDone) {
+        try {
+            byte[] bytes = new byte[(int) Math.min(zipFile.length(), Integer.MAX_VALUE)];
+            try (FileInputStream in = new FileInputStream(zipFile)) {
+                int offset = 0;
+                while (offset < bytes.length) {
+                    int read = in.read(bytes, offset, bytes.length - offset);
+                    if (read < 0) break;
+                    offset += read;
+                }
+            }
+            installBootstrapBytes(activity, bytes, whenDone);
+        } catch (IOException e) {
+            showBootstrapErrorDialog(activity, whenDone, Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)));
+        }
+    }
+
+    /**
+     * Extracts a bootstrap zip into the termux prefix directory.
+     *
+     * @param activity  the activity
+     * @param zipBytes  the content of the bootstrap zip
+     * @param whenDone  run after the installation finished
+     */
+    private static void installBootstrapBytes(final Activity activity, final byte[] zipBytes, final Runnable whenDone) {
         final ProgressDialog progress = ProgressDialog.show(activity, null, activity.getString(R.string.bootstrap_installer_body), true, false);
         new Thread() {
             @Override
@@ -156,7 +194,6 @@ final class TermuxInstaller {
                     final byte[] buffer = new byte[8096];
                     final List<Pair<String, String>> symlinks = new ArrayList<>(50);
 
-                    final byte[] zipBytes = loadZipBytes();
                     try (ZipInputStream zipInput = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
                         ZipEntry zipEntry;
                         while ((zipEntry = zipInput.getNextEntry()) != null) {
@@ -179,6 +216,8 @@ final class TermuxInstaller {
                                 }
                             } else {
                                 String zipEntryName = zipEntry.getName();
+                                if (!isSafeZipEntryName(zipEntryName))
+                                    throw new RuntimeException("Unsafe file name in the bootstrap archive: \"" + zipEntryName + "\"");
                                 File targetFile = new File(TERMUX_STAGING_PREFIX_DIR_PATH, zipEntryName);
                                 boolean isDirectory = zipEntry.isDirectory();
 
@@ -237,6 +276,18 @@ final class TermuxInstaller {
                 }
             }
         }.start();
+    }
+
+    /**
+     * Check that a member of a bootstrap archive cannot escape the prefix directory.
+     */
+    private static boolean isSafeZipEntryName(String name) {
+        if (name == null || name.isEmpty()) return false;
+        if (name.startsWith("/") || name.contains("\\")) return false;
+        for (String part : name.split("/")) {
+            if (part.equals("..")) return false;
+        }
+        return true;
     }
 
     public static void showBootstrapErrorDialog(Activity activity, Runnable whenDone, String message) {

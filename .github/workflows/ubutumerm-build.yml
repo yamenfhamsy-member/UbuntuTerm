@@ -80,7 +80,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Download pre-compiled custom bootstrap from a prior run
+      - name: Download a pre-built bootstrap from a prior run
         if: ${{ inputs.bootstrap_run_id != '' }}
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
@@ -89,208 +89,30 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: termux-packages/output
 
-      - name: Prepare termux-packages at the pinned upstream commit and apply the UbuntuTerm patch
+      - name: Create the bootstrap placeholder
         if: ${{ inputs.bootstrap_run_id == '' }}
         run: |
           set -euo pipefail
-          git init termux-packages
-          cd termux-packages
-          git remote add origin https://github.com/termux/termux-packages.git
-          git fetch --depth 1 origin "$TERMUX_PACKAGES_COMMIT"
-          git checkout FETCH_HEAD
-          git apply "$GITHUB_WORKSPACE/patches/termux-packages-ubutumerm.patch"
-          mkdir -p output
+          # UbuntuTerm does not ship a Termux bootstrap: the bootstrap has to be compiled for
+          # the application id of the fork and is imported by the user from the device storage.
+          # A placeholder is embedded so that the native library can be linked, it only
+          # contains a marker file and is replaced as soon as the user imports a bootstrap.
+          PLACEHOLDER_DIR="$(mktemp -d)"
+          cd "$PLACEHOLDER_DIR"
+          echo "ubuntuter-bootstrap-placeholder<-.ubuntuter-bootstrap-placeholder" > SYMLINKS.txt
+          echo "UbuntuTerm does not contain a Termux bootstrap. Import one from the device storage." \
+            > .ubuntuter-bootstrap-placeholder
+          mkdir -p "$GITHUB_WORKSPACE/termux-packages/output"
+          zip -r9 "$GITHUB_WORKSPACE/termux-packages/output/bootstrap-aarch64.zip" \
+            SYMLINKS.txt .ubuntuter-bootstrap-placeholder > /dev/null
+          rm -rf "$PLACEHOLDER_DIR"
+          ls -lh "$GITHUB_WORKSPACE/termux-packages/output/bootstrap-aarch64.zip"
 
-      - name: Start the isolated Termux package-builder container
-        if: ${{ inputs.bootstrap_run_id == '' }}
-        working-directory: termux-packages
+      - name: Stage the bootstrap
         run: |
           set -euo pipefail
-          docker pull ghcr.io/termux/package-builder:latest
-          docker run -d --init \
-            --name ubutumerm-builder \
-            --cap-add CAP_SYS_ADMIN \
-            --cap-add SYS_PTRACE \
-            --device /dev/fuse \
-            --security-opt seccomp=unconfined \
-            --security-opt apparmor=unconfined \
-            --shm-size=2g \
-            -v "$PWD:/home/builder/termux-packages" \
-            -w /home/builder/termux-packages \
-            ghcr.io/termux/package-builder:latest \
-            sleep infinity
-
-          RUNNER_UID="$(id -u)"
-          RUNNER_GID="$(id -g)"
-          if [ "$RUNNER_UID" != "1001" ]; then
-            docker exec -u 0 ubutumerm-builder usermod -u "$RUNNER_UID" builder
-            docker exec -u 0 ubutumerm-builder groupmod -g "$RUNNER_GID" builder
-            docker exec -u 0 ubutumerm-builder chown -R "$RUNNER_UID:$RUNNER_GID" /home/builder /data
-          fi
-
-          docker exec -u 0 ubutumerm-builder bash -c '
-            mkdir -p /data/data/com.ubutumerm.app /data/data/.built-packages
-            chown -R builder:builder /data/data/com.ubutumerm.app /data/data/.built-packages
-            ln -sfn /data/data/com.ubutumerm.app/aosp /system
-            sysctl -w kernel.pid_max=65535 || echo 65535 > /proc/sys/kernel/pid_max || true
-          '
-
-      - name: Compile the custom bootstrap from source (aarch64)
-        if: ${{ inputs.bootstrap_run_id == '' }}
-        working-directory: termux-packages
-        run: |
-          set -euo pipefail
-          : > output/bootstrap-aarch64-build.log
-
-          (
-            tail -n +1 -f output/bootstrap-aarch64-build.log | \
-              grep --line-buffered -E "termux - build of|\[\*\] (Building|Extracting|Creating|Finished)|built - skipping|ERROR:" || true
-          ) &
-          TAIL_PID=$!
-          trap 'kill "$TAIL_PID" 2>/dev/null || true' EXIT
-
-          docker exec -e CI=true -u builder -w /home/builder/termux-packages ubutumerm-builder \
-            bash -c '
-              exec </dev/null >output/bootstrap-aarch64-build.log 2>&1
-              ./scripts/build-bootstraps.sh --architectures aarch64
-              rc=$?
-              gpgconf --kill all >/dev/null 2>&1 || pkill -u builder gpg-agent >/dev/null 2>&1 || true
-              exit $rc
-            '
-
-          sleep 2
-          kill "$TAIL_PID" 2>/dev/null || true
-          docker rm -f ubutumerm-builder >/dev/null 2>&1 || true
-          ls -lh output/bootstrap-aarch64.zip
-
-      - name: Upload the compiled custom bootstrap
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: bootstrap-aarch64
-          path: termux-packages/output/bootstrap-aarch64.zip
-          retention-days: 30
-
-      - name: Slim down and audit the custom bootstrap (aarch64)
-        working-directory: termux-packages
-        run: |
-          set -euo pipefail
-          ZIP_PATH="output/bootstrap-aarch64.zip"
-          AUDIT_REPORT="output/bootstrap-aarch64-audit.txt"
-          test -f "$ZIP_PATH"
-
-          AUDIT_DIR="/tmp/audit-aarch64"
-          rm -rf "$AUDIT_DIR"
-          mkdir -p "$AUDIT_DIR"
-          unzip -q "$ZIP_PATH" -d "$AUDIT_DIR"
-
-          {
-            echo "=== UbuntuTerm custom bootstrap audit (aarch64) ==="
-            echo "Archive: $ZIP_PATH"
-            echo "Size: $(stat -c%s "$ZIP_PATH") bytes"
-            echo "SHA256: $(sha256sum "$ZIP_PATH" | awk '{print $1}')"
-            echo ""
-            echo "--- Required files check ---"
-            for req in SYMLINKS.txt bin/bash bin/apt bin/dpkg bin/pkg bin/proot bin/xz bin/tar etc/apt/sources.list; do
-              if [ -e "$AUDIT_DIR/$req" ] || grep -qE "←\./${req}$" "$AUDIT_DIR/SYMLINKS.txt"; then
-                echo "[OK] $req"
-              else
-                echo "[FAIL] Missing $req"
-                exit 1
-              fi
-            done
-
-            echo ""
-            echo "--- ELF isolation check (no functional reference to the Termux prefix) ---"
-            ELF_COUNT=0
-            RUNPATH_COUNT=0
-            while IFS= read -r -d '' f; do
-              if [ "$(head -c 4 "$f" 2>/dev/null | wc -c)" -eq 4 ] && head -c 4 "$f" | grep -qa $'\x7fELF'; then
-                ELF_COUNT=$((ELF_COUNT + 1))
-                # The output is captured first: "command | grep -q" would kill the command
-                # with SIGPIPE, which "pipefail" reports as a failure of the whole pipeline.
-                runpath="$(readelf -d "$f" 2>/dev/null | grep -E 'RUNPATH|RPATH' || true)"
-                if printf '%s' "$runpath" | grep -q "/data/data/com.termux"; then
-                  echo "[FAIL] Original prefix in DT_RUNPATH of $f"
-                  exit 1
-                fi
-                if strings "$f" 2>/dev/null | grep -q "/data/data/com.termux/files/usr"; then
-                  echo "[FAIL] Original prefix string found in ELF binary $f"
-                  exit 1
-                fi
-                if printf '%s' "$runpath" | grep -q "/data/data/com.ubutumerm.app/files/usr"; then
-                  RUNPATH_COUNT=$((RUNPATH_COUNT + 1))
-                fi
-              fi
-            done < <(find "$AUDIT_DIR" -type f -print0)
-            echo "[PASS] Audited $ELF_COUNT ELF binaries: no functional reference to /data/data/com.termux"
-            echo "RUNPATH of the main binaries:"
-            for probe in bin/bash bin/apt bin/dpkg bin/proot bin/coreutils; do
-              if [ -e "$AUDIT_DIR/$probe" ]; then
-                echo "  $probe -> $(readelf -d "$AUDIT_DIR/$probe" 2>/dev/null | grep -E 'RUNPATH|RPATH' | head -1 | sed -E 's/.*(\[.*\])/\1/' || echo none)"
-              fi
-            done
-            echo "Distinct RUNPATH values found:"
-            while IFS= read -r -d '' f; do
-              if [ "$(head -c 4 "$f" 2>/dev/null | wc -c)" -eq 4 ] && head -c 4 "$f" | grep -qa $'\x7fELF'; then
-                readelf -d "$f" 2>/dev/null | grep -E 'RUNPATH|RPATH' || true
-              fi
-            done < <(find "$AUDIT_DIR" -type f -print0) | sed -E 's/.*(\[.*\])/\1/' | sort | uniq -c | sort -rn | head -10
-            if [ "$RUNPATH_COUNT" -lt 1 ]; then
-              echo "[WARN] No ELF binary uses /data/data/com.ubutumerm.app/files/usr as RUNPATH"
-            else
-              echo "[PASS] $RUNPATH_COUNT ELF binaries use /data/data/com.ubutumerm.app/files/usr as RUNPATH"
-            fi
-
-            echo ""
-            echo "--- UbuntuTerm prefix check ---"
-            if ! strings "$AUDIT_DIR/bin/proot" | grep -q "/data/data/com.ubutumerm.app/files/usr"; then
-              echo "[FAIL] proot does not reference the UbuntuTerm prefix"
-              exit 1
-            fi
-            echo "[PASS] proot references /data/data/com.ubutumerm.app/files/usr"
-
-            echo ""
-            echo "--- Zero contamination scan across scripts, shebangs, configs and SYMLINKS.txt ---"
-            if grep -rn "/data/data/com.termux" \
-              "$AUDIT_DIR/etc" \
-              "$AUDIT_DIR/var" \
-              "$AUDIT_DIR/SYMLINKS.txt" > /tmp/contamination.txt 2>&1; then
-              echo "[FAIL] Found /data/data/com.termux contamination:"
-              cat /tmp/contamination.txt
-              exit 1
-            fi
-            echo "[PASS] Zero active references to /data/data/com.termux"
-          } | tee "$AUDIT_REPORT"
-
-      - name: Strip runtime-unneeded files and re-pack the bootstrap
-        working-directory: termux-packages
-        run: |
-          set -euo pipefail
-          SLIM_DIR="/tmp/bootstrap-slim"
-          rm -rf "$SLIM_DIR"
-          mkdir -p "$SLIM_DIR"
-          unzip -q output/bootstrap-aarch64.zip -d "$SLIM_DIR"
-
-          # Development headers, manuals and info pages are not needed at runtime and would
-          # increase the size of the APK by more than 10 MB.
-          rm -rf "$SLIM_DIR/include" "$SLIM_DIR/share/doc" "$SLIM_DIR/share/man" \
-                 "$SLIM_DIR/share/info" "$SLIM_DIR/share/misc"
-
-          # Drop the symlink definitions that point into the removed directories, so that no
-          # dangling symlinks are created during the bootstrap installation.
-          if [ -f "$SLIM_DIR/SYMLINKS.txt" ]; then
-            grep -vE '←\./(include|share/doc|share/man|share/info|share/misc)/' \
-              "$SLIM_DIR/SYMLINKS.txt" > "$SLIM_DIR/SYMLINKS.txt.new" || true
-            mv "$SLIM_DIR/SYMLINKS.txt.new" "$SLIM_DIR/SYMLINKS.txt"
-          fi
-
-          OUT_DIR="$PWD/output"
-          mkdir -p "$OUT_DIR"
-          rm -f "$OUT_DIR/bootstrap-aarch64-slim.zip"
-          (cd "$SLIM_DIR" && zip -r9 "$OUT_DIR/bootstrap-aarch64-slim.zip" ./* > /dev/null)
-          ls -lh "$OUT_DIR/bootstrap-aarch64-slim.zip"
-          cp -v "$OUT_DIR/bootstrap-aarch64-slim.zip" "$OUT_DIR/bootstrap-aarch64.zip"
-          df -h /
+          mkdir -p app/src/main/cpp
+          cp -v termux-packages/output/bootstrap-aarch64.zip app/src/main/cpp/bootstrap-aarch64.zip
 
       - name: Prepare the bundled Ubuntu rootfs asset
         run: |
@@ -336,12 +158,6 @@ jobs:
           rm -rf /tmp/ubuntu-rootfs /tmp/ubuntu-base.tar /tmp/ubuntu-base.tar.gz
           ls -lh app/src/main/assets/ubuntu/
           cat app/src/main/assets/ubuntu/rootfs-manifest.properties
-
-      - name: Stage the custom arm64 bootstrap
-        run: |
-          set -euo pipefail
-          mkdir -p app/src/main/cpp
-          cp -v termux-packages/output/bootstrap-aarch64.zip app/src/main/cpp/bootstrap-aarch64.zip
 
       - name: Set up the optional release signing key
         id: signing

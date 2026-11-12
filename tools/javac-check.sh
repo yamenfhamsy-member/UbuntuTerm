@@ -70,6 +70,7 @@ DEPENDENCIES=(
     "io.noties.markwon:recycler:4.6.2"
     "org.lsposed.hiddenapibypass:hiddenapibypass:6.1"
     "commons-io:commons-io:2.5"
+    "org.apache.commons:commons-compress:1.27.1"
     "com.termux:termux-am-library:v2.0.0"
     "org.commonmark:commonmark:0.21.0"
     "org.commonmark:commonmark-ext-gfm-strikethrough:0.21.0"

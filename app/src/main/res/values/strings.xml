@@ -255,4 +255,14 @@
     <!-- UbuntuTerm: embedded Termux:API -->
     <string name="share_file_chooser_title">Share with</string>
 
+    <!-- UbuntuTerm: bootstrap import -->
+    <string name="bootstrap_import_title">استيراد البوتستراب</string>
+    <string name="bootstrap_import_description">لا يوجد بوتستراب مثبّت. اختر ملف البوتستراب (bootstrap-aarch64.zip) من ملفات الجهاز ليعمل Ubuntu. يجب أن يكون الملف مبنياً لنفس اسم الحزمة com.ubutumerm.app.</string>
+    <string name="bootstrap_import_status">في انتظار اختيار الملف…</string>
+    <string name="bootstrap_import_pick">اختر ملف البوتستراب</string>
+    <string name="bootstrap_import_installing">جارٍ تثبيت البوتستراب…</string>
+    <string name="bootstrap_import_done">تم تثبيت البوتستراب</string>
+    <string name="bootstrap_import_failed">فشل استيراد البوتستراب: %1$s</string>
+    <string name="bootstrap_import_no_picker">لا يوجد تطبيق لاختيار الملفات على الجهاز</string>
+
 </resources>

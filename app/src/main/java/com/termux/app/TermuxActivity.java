@@ -27,7 +27,9 @@ import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.termux.R;
+import com.termux.app.ubuntu.UbuntuBootstrapImportActivity;
 import com.termux.app.ubuntu.UbuntuInstallerActivity;
+import com.termux.app.ubuntu.UbuntuSessionLauncher;
 import com.termux.app.ubuntu.UbuntuRootFsManager;
 import com.termux.app.api.file.FileReceiverActivity;
 import com.termux.app.terminal.TermuxActivityRootView;
@@ -410,6 +412,14 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                             // UbuntuTerm: the host (Termux) shell can be requested explicitly.
                             launchFailsafe = launchFailsafe || intent.getExtras()
                                 .getBoolean(EXTRA_UBUNTU_HOST_MODE, false);
+                        }
+
+                        // UbuntuTerm: the host runtime (the Termux bootstrap with PRoot) is not
+                        // part of the APK, the user imports it from the device storage.
+                        if (!launchFailsafe && !UbuntuSessionLauncher.isHostRuntimeReady()) {
+                            Logger.logInfo("TermuxActivity", "No bootstrap installed, opening the import screen");
+                            startActivity(new Intent(TermuxActivity.this, UbuntuBootstrapImportActivity.class));
+                            return;
                         }
 
                         // UbuntuTerm: the Ubuntu guest is the default environment, so it has to be

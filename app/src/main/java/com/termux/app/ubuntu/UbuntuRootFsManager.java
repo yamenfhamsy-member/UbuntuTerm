@@ -15,6 +15,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
+
+import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import java.util.Locale;
 import java.util.Properties;
 
@@ -333,24 +335,25 @@ public class UbuntuRootFsManager {
         }
     }
 
-    /** Decompress an xz compressed file using the {@code xz} binary of the host runtime. */
+    /**
+     * Decompress an xz compressed file.
+     *
+     * <p>The decompression is done in pure Java (XZ/LZMA2) so that it also works when the
+     * application was installed without a Termux bootstrap.
+     */
     private static void decompressWithXz(File source, File target, InstallListener listener) throws IOException {
-        File xz = new File(UbuntuConstants.HOST_XZ_BINARY);
-        if (!xz.canExecute())
-            throw new IOException("أداة فك الضغط xz غير متوفرة في بيئة المضيف");
-
-        ProcessBuilder builder = new ProcessBuilder(xz.getAbsolutePath(), "-dc", source.getAbsolutePath());
-        builder.redirectErrorStream(true);
-        builder.redirectOutput(target);
-
-        Process process = builder.start();
-        try {
-            int exitCode = process.waitFor();
-            if (exitCode != 0)
-                throw new IOException("فشل فك الضغط عبر xz (رمز الخروج " + exitCode + ")");
-        } catch (InterruptedException e) {
-            process.destroy();
-            throw new IOException("تم إلغاء عملية فك الضغط", e);
+        try (InputStream in = new XZCompressorInputStream(new BufferedInputStream(new FileInputStream(source), 64 * 1024));
+             OutputStream out = new FileOutputStream(target)) {
+            byte[] buffer = new byte[128 * 1024];
+            long written = 0;
+            int read;
+            while ((read = in.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+                written += read;
+                listener.onProgress(Phase.DECOMPRESSING, (int) Math.min(99, written / (1024 * 1024)),
+                    "جارٍ فك ضغط الحزمة…");
+            }
+            out.flush();
         }
         listener.onProgress(Phase.DECOMPRESSING, 90, "تم فك ضغط الحزمة");
     }

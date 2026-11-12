@@ -33,7 +33,11 @@ Everything runs **without root**: the Ubuntu guest is a userspace (glibc) system
   compressed archive and is unpacked on the first start, so Ubuntu is available immediately
   and offline. If the bundled archive is unavailable the application falls back to
   downloading the official image from `cdimage.ubuntu.com` and verifying it against a pinned
-  SHA-256.
+  SHA-256. The archive is decompressed in pure Java, so no tool of the host runtime is needed.
+* The **Termux bootstrap is not part of the APK** (it has to match the application id of the
+  fork). On the first start the application asks for a `bootstrap-aarch64.zip` file and installs
+  the archive that the user selects from the storage of the device into the application prefix
+  directory.
 * `apt` works inside the guest: `apt-get update`, `apt-get install python3 git curl
   ca-certificates`, `apt-get check`, `dpkg --audit`, `dpkg --print-architecture` → `arm64`.
 * User data survives APK updates: the guest home directory is the application home directory

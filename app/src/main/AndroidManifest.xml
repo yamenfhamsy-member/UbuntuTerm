@@ -106,6 +106,15 @@
             android:resizeableActivity="true"
             tools:targetApi="n" />
 
+        <!-- UbuntuTerm: import of a Termux bootstrap from the device storage. -->
+        <activity
+            android:name=".app.ubuntu.UbuntuBootstrapImportActivity"
+            android:exported="false"
+            android:label="@string/bootstrap_import_title"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxActivity.DayNight.NoActionBar"
+            tools:targetApi="n" />
+
         <!-- UbuntuTerm: first run installation of the Ubuntu guest. -->
         <activity
             android:name=".app.ubuntu.UbuntuInstallerActivity"

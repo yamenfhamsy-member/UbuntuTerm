@@ -64,9 +64,6 @@ public class UbuntuConstants {
     /** Path of the host side tar binary (part of the Termux bootstrap). */
     public static final String HOST_TAR_BINARY = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/tar";
 
-    /** Path of the host side xz binary (part of the Termux bootstrap), used to unpack the bundled rootfs. */
-    public static final String HOST_XZ_BINARY = TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/xz";
-
     /** Name of the compressed Ubuntu archive bundled inside the APK. */
     public static final String BUNDLED_ROOTFS_ASSET = "ubuntu-base-" + UBUNTU_VERSION + "-base-arm64.tar.xz";
 
