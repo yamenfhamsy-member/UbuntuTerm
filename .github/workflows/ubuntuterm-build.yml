@@ -189,15 +189,18 @@ jobs:
             while IFS= read -r -d '' f; do
               if [ "$(head -c 4 "$f" 2>/dev/null | wc -c)" -eq 4 ] && head -c 4 "$f" | grep -qa $'\x7fELF'; then
                 ELF_COUNT=$((ELF_COUNT + 1))
-                if readelf -d "$f" 2>/dev/null | grep -E 'RUNPATH|RPATH' | grep -q "/data/data/com.termux"; then
+                # The output is captured first: "command | grep -q" would kill the command
+                # with SIGPIPE, which "pipefail" reports as a failure of the whole pipeline.
+                runpath="$(readelf -d "$f" 2>/dev/null | grep -E 'RUNPATH|RPATH' || true)"
+                if printf '%s' "$runpath" | grep -q "/data/data/com.termux"; then
                   echo "[FAIL] Original prefix in DT_RUNPATH of $f"
                   exit 1
                 fi
-                if strings "$f" | grep -q "/data/data/com.termux/files/usr"; then
+                if strings "$f" 2>/dev/null | grep -q "/data/data/com.termux/files/usr"; then
                   echo "[FAIL] Original prefix string found in ELF binary $f"
                   exit 1
                 fi
-                if readelf -d "$f" 2>/dev/null | grep -E 'RUNPATH|RPATH' | grep -q "/data/data/com.ubutumerm.app/files/usr"; then
+                if printf '%s' "$runpath" | grep -q "/data/data/com.ubutumerm.app/files/usr"; then
                   RUNPATH_COUNT=$((RUNPATH_COUNT + 1))
                 fi
               fi
@@ -264,10 +267,13 @@ jobs:
             mv "$SLIM_DIR/SYMLINKS.txt.new" "$SLIM_DIR/SYMLINKS.txt"
           fi
 
-          rm -f output/bootstrap-aarch64-slim.zip
-          (cd "$SLIM_DIR" && zip -r9 ../output/bootstrap-aarch64-slim.zip ./* > /dev/null)
-          ls -lh output/bootstrap-aarch64-slim.zip
-          cp -v output/bootstrap-aarch64-slim.zip output/bootstrap-aarch64.zip
+          OUT_DIR="$PWD/output"
+          mkdir -p "$OUT_DIR"
+          rm -f "$OUT_DIR/bootstrap-aarch64-slim.zip"
+          (cd "$SLIM_DIR" && zip -r9 "$OUT_DIR/bootstrap-aarch64-slim.zip" ./* > /dev/null)
+          ls -lh "$OUT_DIR/bootstrap-aarch64-slim.zip"
+          cp -v "$OUT_DIR/bootstrap-aarch64-slim.zip" "$OUT_DIR/bootstrap-aarch64.zip"
+          df -h /
 
       - name: Prepare the bundled Ubuntu rootfs asset
         run: |
