@@ -32,8 +32,6 @@ android {
     ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.properties.ndkVersion
     def appVersionName = System.getenv("TERMUX_APP_VERSION_NAME") ?: ""
     def apkVersionTag = System.getenv("TERMUX_APK_VERSION_TAG") ?: ""
-    def splitAPKsForDebugBuilds = System.getenv("TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS") ?: "1"
-    def splitAPKsForReleaseBuilds = System.getenv("TERMUX_SPLIT_APKS_FOR_RELEASE_BUILDS") ?: "0" // F-Droid does not support split APKs #1904
 
     dependencies {
         implementation "androidx.annotation:annotation:1.9.0"
@@ -83,18 +81,9 @@ android {
         }
 
         ndk {
-            // UbuntuTerm only ships arm64-v8a.
+            // UbuntuTerm only ships arm64-v8a. The ABI filter also restricts the NDK build to
+            // aarch64, which is the only architecture the bootstrap is compiled for.
             abiFilters "arm64-v8a"
-        }
-
-        splits {
-            abi {
-                enable ((gradle.startParameter.taskNames.any { it.contains("Debug") } && splitAPKsForDebugBuilds == "1") ||
-                    (gradle.startParameter.taskNames.any { it.contains("Release") } && splitAPKsForReleaseBuilds == "1"))
-                reset ()
-                include 'arm64-v8a'
-                universalApk false
-            }
         }
     }
 
@@ -169,8 +158,8 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            def abi = output.getFilter(com.android.build.OutputFile.ABI)
-            outputFileName = new File("UbuntuTerm-" + (abi ? abi : "universal") + ".apk")
+            // The APK contains arm64-v8a native libraries only, so it is named accordingly.
+            outputFileName = new File("UbuntuTerm-arm64-v8a.apk")
         }
     }
 
