@@ -10,6 +10,19 @@ ext {
     // by replacing $PREFIX since app code is dependant on the variant used to build the APK.
     // Currently supported values are: [ "apt-android-7" "apt-android-5" ]
     packageVariant = System.getenv("TERMUX_PACKAGE_VARIANT") ?: "apt-android-7" // Default: "apt-android-7"
+
+    // UbuntuTerm ships a single arm64-v8a APK.
+    targetAbi = "arm64-v8a"
+
+    // When set to "1" the Gradle build must not download the upstream bootstrap:
+    // UbuntuTerm uses a bootstrap compiled from source for its own package name
+    // (see .github/workflows/ubuntuterm-build.yml and patches/termux-packages-ubuntuterm.patch).
+    useLocalBootstrapOnly = (System.getenv("UBUNTUTERM_BOOTSTRAP_LOCAL_ONLY") ?: "0") == "1"
+
+    // Optional release signing material. When the keystore is not provided the release build
+    // falls back to the bundled public test key and is therefore a TEST build only.
+    releaseKeystoreFile = System.getenv("UBUNTUTERM_KEYSTORE_FILE")
+    hasReleaseKeystore = releaseKeystoreFile != null && !releaseKeystoreFile.trim().isEmpty() && file(releaseKeystoreFile).exists()
 }
 
 android {
@@ -43,17 +56,19 @@ android {
     defaultConfig {
         minSdkVersion project.properties.minSdkVersion.toInteger()
         targetSdkVersion project.properties.targetSdkVersion.toInteger()
-        versionCode 118
-        versionName "0.118.0"
+        versionCode 1
+        versionName "1.0.0"
 
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)
 
         buildConfigField "String", "TERMUX_PACKAGE_VARIANT", "\"" + project.ext.packageVariant + "\"" // Used by TermuxApplication class
+        buildConfigField "String", "TERMUX_APP_PACKAGE", "\"" + "com.ubuntuterm.app" + "\"" // Application id of this fork
+        buildConfigField "boolean", "TERMUX_RELEASE_SIGNED", "false" // Overridden below when a release keystore is used
 
-        manifestPlaceholders.TERMUX_PACKAGE_NAME = "com.termux"
-        manifestPlaceholders.TERMUX_APP_NAME = "Termux"
-        manifestPlaceholders.TERMUX_API_APP_NAME = "Termux:API"
+        manifestPlaceholders.TERMUX_PACKAGE_NAME = "com.ubuntuterm.app"
+        manifestPlaceholders.TERMUX_APP_NAME = "UbuntuTerm"
+        manifestPlaceholders.TERMUX_API_APP_NAME = "UbuntuTerm:API"
         manifestPlaceholders.TERMUX_BOOT_APP_NAME = "Termux:Boot"
         manifestPlaceholders.TERMUX_FLOAT_APP_NAME = "Termux:Float"
         manifestPlaceholders.TERMUX_STYLING_APP_NAME = "Termux:Styling"
@@ -66,13 +81,18 @@ android {
             }
         }
 
+        ndk {
+            // UbuntuTerm only ships arm64-v8a.
+            abiFilters "arm64-v8a"
+        }
+
         splits {
             abi {
                 enable ((gradle.startParameter.taskNames.any { it.contains("Debug") } && splitAPKsForDebugBuilds == "1") ||
                     (gradle.startParameter.taskNames.any { it.contains("Release") } && splitAPKsForReleaseBuilds == "1"))
                 reset ()
-                include 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
-                universalApk true
+                include 'arm64-v8a'
+                universalApk false
             }
         }
     }
@@ -84,13 +104,31 @@ android {
             storePassword 'xrj45yWGLbsO7W0v'
             keyPassword 'xrj45yWGLbsO7W0v'
         }
+        release {
+            if (project.ext.hasReleaseKeystore) {
+                storeFile file(project.ext.releaseKeystoreFile)
+                storePassword System.getenv("UBUNTUTERM_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("UBUNTUTERM_KEY_ALIAS")
+                keyPassword System.getenv("UBUNTUTERM_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
-            minifyEnabled true
+            // Proguard is disabled: UbuntuTerm embeds the Termux:API implementation which relies on
+            // Android framework classes that are resolved reflectively in places.
+            minifyEnabled false
             shrinkResources false // Reproducible builds
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (project.ext.hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            } else {
+                // No release keystore configured: this is a TEST build signed with the public
+                // test key shipped with the Termux sources. It cannot upgrade an installed
+                // build signed with a different key.
+                signingConfig signingConfigs.debug
+            }
         }
 
         debug {
@@ -130,13 +168,8 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            if (variant.buildType.name == "debug") {
-                def abi = output.getFilter(com.android.build.OutputFile.ABI)
-                outputFileName = new File("termux-app_" + (apkVersionTag ? apkVersionTag : project.ext.packageVariant + "-" + "debug") + "_" + (abi ? abi : "universal") + ".apk")
-            } else if (variant.buildType.name == "release") {
-                def abi = output.getFilter(com.android.build.OutputFile.ABI)
-                outputFileName = new File("termux-app_" + (apkVersionTag ? apkVersionTag : project.ext.packageVariant + "-" + "release") + "_" + (abi ? abi : "universal") + ".apk")
-            }
+            def abi = output.getFilter(com.android.build.OutputFile.ABI)
+            outputFileName = new File("UbuntuTerm-" + (abi ? abi : "universal") + ".apk")
         }
     }
 
@@ -218,6 +251,20 @@ clean {
 task downloadBootstraps() {
     doLast {
         def packageVariant = project.ext.packageVariant
+
+        if (project.ext.useLocalBootstrapOnly) {
+            // UbuntuTerm ships a bootstrap that was compiled from termux-packages for the
+            // com.ubuntuterm.app package name. The upstream bootstrap embeds the
+            // /data/data/com.termux prefix and therefore must not be used here.
+            def local = file("src/main/cpp/bootstrap-aarch64.zip")
+            if (!local.exists()) {
+                throw new GradleException("Expected a locally built bootstrap at " + local.getAbsolutePath() +
+                    " (set UBUNTUTERM_BOOTSTRAP_LOCAL_ONLY=0 to download the upstream bootstrap instead)")
+            }
+            logger.quiet("Using local bootstrap: " + local.getAbsolutePath() + " (" + local.length() + " bytes)")
+            return
+        }
+
         if (packageVariant == "apt-android-7") {
             def version = "2026.02.12-r1" + "%2B" + "apt.android-7"
             downloadBootstrap("aarch64", "ea2aeba8819e517db711f8c32369e89e7c52cee73e07930ff91185e1ab93f4f3", version)
