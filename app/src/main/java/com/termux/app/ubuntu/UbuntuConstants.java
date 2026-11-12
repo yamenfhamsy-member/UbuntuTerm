@@ -87,6 +87,30 @@ public class UbuntuConstants {
     public static final String FALLBACK_RESOLV_CONF =
         "nameserver 1.1.1.1\nnameserver 8.8.8.8\n";
 
+    /** Telegram channel of the project. */
+    public static final String TELEGRAM_CHANNEL = "https://t.me/thorfin963";
+
+    /** Telegram account of the developer. */
+    public static final String DEVELOPER_ACCOUNT = "https://t.me/Ya_ali963";
+
+    /**
+     * Build the copyright notice that is printed every time the user starts a new session
+     * inside the Ubuntu guest.
+     */
+    public static String buildCreditNotice() {
+        return "#!/bin/sh\n" +
+            "# Copyright notice of UbuntuTerm, printed for every new guest session.\n" +
+            "if [ -t 1 ]; then\n" +
+            "    printf '\\n'\n" +
+            "    printf 'UbuntuTerm " + UBUNTU_VERSION + " - Ubuntu " + UBUNTU_VERSION + " LTS (" +
+            UBUNTU_CODENAME + ") " + UBUNTU_ARCH + "\\n'\n" +
+            "    printf 'حقوق النشر والمصادر:\\n'\n" +
+            "    printf '  قناة تليغرام: " + TELEGRAM_CHANNEL + "\\n'\n" +
+            "    printf '  حساب المطور: " + DEVELOPER_ACCOUNT + "\\n'\n" +
+            "    printf '\\n'\n" +
+            "fi\n";
+    }
+
     private UbuntuConstants() {
     }
 }

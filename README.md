@@ -83,6 +83,19 @@ reports and a `SHA256SUMS.txt`.
 | [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | What PRoot cannot do |
 | [docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md) | Licences of all used components |
 
+## Copyright
+
+UbuntuTerm is developed and published by the maintainer of the Telegram channel
+**thorfin963** and the developer account **Ya_ali963**:
+
+| | |
+|---|---|
+| Telegram channel | https://t.me/thorfin963 |
+| Developer account | https://t.me/Ya_ali963 |
+
+The copyright notice is printed by every new session inside the Ubuntu guest, so that it is
+always visible while the application is used.
+
 ## Upstream
 
 UbuntuTerm is a fork of [termux/termux-app](https://github.com/termux/termux-app) at commit

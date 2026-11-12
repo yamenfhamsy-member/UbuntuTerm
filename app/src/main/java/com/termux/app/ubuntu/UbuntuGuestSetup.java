@@ -52,11 +52,21 @@ public class UbuntuGuestSetup {
         }
 
         // Release information inside the guest.
-        writeText(new File(stagingDir, "etc/ubuntuterm-release"),
+        writeText(new File(stagingDir, "etc/ubunturterm-release"),
             "UbuntuTerm guest\n" +
             "ubuntu_version=" + UbuntuConstants.UBUNTU_VERSION + "\n" +
             "ubuntu_codename=" + UbuntuConstants.UBUNTU_CODENAME + "\n" +
-            "ubuntu_arch=" + UbuntuConstants.UBUNTU_ARCH + "\n");
+            "ubuntu_arch=" + UbuntuConstants.UBUNTU_ARCH + "\n" +
+            "telegram_channel=" + UbuntuConstants.TELEGRAM_CHANNEL + "\n" +
+            "developer=" + UbuntuConstants.DEVELOPER_ACCOUNT + "\n");
+
+        // Copyright notice: it is printed by every new login shell of the guest.
+        File profileD = new File(stagingDir, "etc/profile.d");
+        UbuntuRootFsManager.mkdirs(profileD);
+        File credit = new File(profileD, "ubuntuterm-credit.sh");
+        writeText(credit, UbuntuConstants.buildCreditNotice());
+        credit.setExecutable(true, false);
+
 
         // Seed the user home with the shell profile of the Ubuntu image. The home directory is
         // stored outside of the rootfs so that it survives rootfs updates and APK updates.
