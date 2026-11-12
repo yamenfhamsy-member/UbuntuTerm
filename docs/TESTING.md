@@ -18,6 +18,26 @@ report (`final-output/reports/`) and in the Telegram status message.
 | Bootstrap isolation | `readelf`/`strings` sweep | no `/data/data/com.termux` reference in the bootstrap |
 | Ubuntu asset | `sha256sum` | the archive matches the official Ubuntu checksum |
 
+## Result of the last build
+
+Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/43308960630>
+
+| Check | Result |
+|---|---|
+| Pre-flight (shellcheck, actionlint, yamllint, javac type check) | Pass |
+| Android Lint (with the baseline of the ported API code) | Pass |
+| Gradle build (`testReleaseUnitTest assembleRelease`) | Pass |
+| Package id `com.ubutumerm.app` | Pass |
+| Application label `UbuntuTerm` | Pass |
+| Native libraries only below `lib/arm64-v8a/` | Pass |
+| `native-code: 'arm64-v8a'` | Pass |
+| APK signature (v2 scheme) | Pass (test key) |
+| Bundled Ubuntu rootfs (`assets/ubuntu/ubuntu-base-26.04.1-base-arm64.tar.xz`) | Present |
+| Telegram delivery (`sendDocument` and `sendMessage`) | Pass |
+
+APK: `UbuntuTerm-arm64-v8a.apk`, 50,041,391 bytes,
+SHA-256 `b3b01d007c399c3a85668c89a3aa31008684d5592d2ebb92e66f35640d1e550c`.
+
 ## Layer 2 – application tests (require a device or emulator)
 
 These tests need a real Android runtime and are therefore **not executed** by the build
