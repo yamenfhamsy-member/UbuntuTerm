@@ -62,6 +62,13 @@ docs/                    Architecture, decisions, build, testing, limitations, l
 
 The APK is **only** built by GitHub Actions, see [docs/BUILDING.md](docs/BUILDING.md).
 
+Before a build is started the repository is validated locally or in the pipeline with
+`shellcheck`, `actionlint`, `yamllint`, a `javac` type check of every source and Android Lint:
+
+```bash
+tools/preflight.sh
+```
+
 ```bash
 git clone https://github.com/yamenfhamsy-member/UbuntuTerm.git
 cd UbuntuTerm

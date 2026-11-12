@@ -45,6 +45,26 @@ notification), `workflow_dispatch`.
 9. **Upload the artifact** `UbuntuTerm-arm64-v8a` containing
    `apk/UbuntuTerm-arm64-v8a.apk`, `SHA256SUMS.txt` and the verification reports.
 
+## Pre-flight checks (before every build)
+
+The pipeline validates the repository **before** the expensive build starts. The same checks can
+be run locally:
+
+```bash
+tools/preflight.sh              # everything
+tools/preflight.sh --skip-javac # without the type check
+```
+
+| Tool | What it checks | Notes |
+|---|---|---|
+| `shellcheck` | the guest side Termux:API wrappers and the helper scripts | the wrappers are executed with bash |
+| `actionlint` | the GitHub Actions workflows, including the shell code of the `run:` blocks | |
+| `yamllint` | the YAML files of the repository | |
+| `javac` | every Java source of the application | `tools/javac-check.sh` downloads the Android platform jar and the Maven artifacts of the build and type checks the sources without running Gradle and without producing an APK |
+| Android Lint | the Android specific problems of the resources and the manifest | runs as part of the Gradle build |
+
+The downloaded artifacts are cached in `tools/.cache`, so only the first run needs the network.
+
 ## Running the workflow manually
 
 ```bash
