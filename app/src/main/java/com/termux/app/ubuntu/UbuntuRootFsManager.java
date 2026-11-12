@@ -457,7 +457,12 @@ public class UbuntuRootFsManager {
     }
 
     static String sha256(File file) throws IOException {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IOException("SHA-256 is not available on this device", e);
+        }
         try (InputStream in = new FileInputStream(file)) {
             byte[] buffer = new byte[128 * 1024];
             int read;

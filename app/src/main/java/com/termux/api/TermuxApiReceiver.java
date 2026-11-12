@@ -116,7 +116,7 @@ public class TermuxApiReceiver extends BroadcastReceiver {
                 MediaPlayerAPI.onReceive(context, intent);
                 break;
             case "MediaScanner":
-                MediaScannerAPI.onReceive(context, intent);
+                MediaScannerAPI.onReceive(this, context, intent);
                 break;
             case "NotificationList":
                 // The notification listener service is not part of UbuntuTerm.
@@ -139,7 +139,7 @@ public class TermuxApiReceiver extends BroadcastReceiver {
                 SensorAPI.onReceive(context, intent);
                 break;
             case "Share":
-                ShareAPI.onReceive(context, intent);
+                ShareAPI.onReceive(this, context, intent);
                 break;
             case "TextToSpeech":
                 TextToSpeechAPI.onReceive(context, intent);
