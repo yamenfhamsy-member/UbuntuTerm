@@ -444,7 +444,7 @@ jobs:
             echo "[PASS] application label is UbuntuTerm"
             echo ""
             echo "--- ABI validation ---"
-            grep -E "^native-code:" "$OUT/reports/badging.txt" | tee -a "$OUT/reports/badging.txt"
+            grep -E "^native-code:" "$OUT/reports/badging.txt"
             if grep -E "^native-code:" "$OUT/reports/badging.txt" | grep -qE "armeabi-v7a|(^|[^a-z0-9])x86(_64)?([^a-z0-9]|$)"; then
               echo "[FAIL] The APK contains native libraries for an unsupported ABI"
               exit 1
@@ -545,7 +545,9 @@ jobs:
 
           APK_SIZE=$(stat -c%s "$APK")
           APK_SHA256=$(sha256sum "$APK" | awk '{print $1}')
-          TEST_RESULTS=$(grep -E "UbuntuTerm-arm64-v8a.apk" "$SHA256_FILE" 2>/dev/null | head -n 1 || true)
+          if grep -q "UbuntuTerm-arm64-v8a.apk" "$SHA256_FILE" 2>/dev/null; then
+            echo "[INFO] The APK is listed in the checksum file"
+          fi
 
           CAPTION=$(cat <<EOF
           ✅ UbuntuTerm build completed successfully
