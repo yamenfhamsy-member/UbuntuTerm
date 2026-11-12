@@ -373,7 +373,7 @@ jobs:
           ./gradlew --no-daemon testReleaseUnitTest assembleRelease
 
       - name: Regenerate the Android Lint baseline
-        if: ${{ inputs.update_lint_baseline == 'true' }}
+        if: ${{ inputs.update_lint_baseline }}
         run: |
           set -euo pipefail
           # The task aborts the build when it creates a new baseline file, so the exit code is
