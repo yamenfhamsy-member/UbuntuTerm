@@ -43,3 +43,6 @@ app/src/main/assets/ubuntu/*.tar.gz
 .swp
 ehthumbs.db
 Thumbs.db
+
+# UbuntuTerm: cache of the local pre-flight check
+tools/.cache/

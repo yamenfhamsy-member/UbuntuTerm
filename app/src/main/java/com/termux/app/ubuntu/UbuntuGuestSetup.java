@@ -85,10 +85,10 @@ public class UbuntuGuestSetup {
     public static void prepareSession(Context context) {
         try {
             writeNetworkConfig(context, new File(UbuntuConstants.ROOTFS_DIR));
+            UbuntuRootFsManager.mkdirs(new File(TermuxConstants.TERMUX_HOME_DIR_PATH));
         } catch (IOException e) {
-            android.util.Log.w(LOG_TAG, "Failed to refresh guest network configuration", e);
+            android.util.Log.w(LOG_TAG, "Failed to refresh the guest configuration", e);
         }
-        UbuntuRootFsManager.mkdirs(new File(TermuxConstants.TERMUX_HOME_DIR_PATH));
     }
 
     /**
