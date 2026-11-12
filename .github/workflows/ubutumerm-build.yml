@@ -376,7 +376,9 @@ jobs:
         if: ${{ inputs.update_lint_baseline == 'true' }}
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon :app:updateLintBaseline
+          # The task aborts the build when it creates a new baseline file, so the exit code is
+          # ignored here on purpose.
+          ./gradlew --no-daemon :app:updateLintBaseline || true
           mkdir -p final-output/reports
           cp -f app/lint-baseline.xml final-output/reports/lint-baseline.xml
 

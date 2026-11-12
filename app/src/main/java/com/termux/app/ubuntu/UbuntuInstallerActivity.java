@@ -1,5 +1,6 @@
 package com.termux.app.ubuntu;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
@@ -131,6 +132,7 @@ public class UbuntuInstallerActivity extends Activity {
         }), "UbuntuTerm-installer").start();
     }
 
+    @SuppressLint("MissingSuperCall")
     @Override
     public void onBackPressed() {
         if (mInstalling)
