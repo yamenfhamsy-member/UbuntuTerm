@@ -71,6 +71,15 @@ public class TermuxApplication extends Application {
         if (isTermuxFilesDirectoryAccessible) {
             TermuxShellEnvironment.writeEnvironmentToFile(this);
         }
+
+        // UbuntuTerm: start the Termux:API socket server. The guest connects to it through an
+        // abstract UNIX socket, so that the Termux:API functionality is available inside Ubuntu
+        // without installing a separate Termux:API application.
+        try {
+            com.termux.api.SocketListener.createSocketListener(this);
+        } catch (Throwable t) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to start the Termux:API socket listener", t);
+        }
     }
 
     public static void setLogConfig(Context context) {

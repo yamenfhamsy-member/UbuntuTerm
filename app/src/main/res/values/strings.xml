@@ -235,4 +235,24 @@
     <!-- Donate Preference -->
     <string name="donate_preference_title">Donate</string>
 
+
+
+    <!-- UbuntuTerm: Ubuntu guest installation -->
+    <string name="ubuntu_installer_title">UbuntuTerm</string>
+    <string name="ubuntu_installer_subtitle">تثبيت Ubuntu 26.04.1 LTS (Resolute Raccoon) — arm64</string>
+    <string name="ubuntu_installer_status_idle">في انتظار البدء…</string>
+    <string name="ubuntu_installer_status_starting">جارٍ بدء التثبيت…</string>
+    <string name="ubuntu_installer_status_missing">Ubuntu غير مثبت: %1$s</string>
+    <string name="ubuntu_installer_status_ready">جاهز: %1$s</string>
+    <string name="ubuntu_installer_status_error">فشل التثبيت: %1$s</string>
+    <string name="ubuntu_installer_retry">إعادة المحاولة</string>
+    <string name="ubuntu_installer_open_ubuntu">فتح Ubuntu</string>
+    <string name="ubuntu_installer_host_mode">تشغيل وضع المضيف (Termux)</string>
+    <string name="ubuntu_installer_details">الإصدار: %1$s\nالاسم الرمزي: %2$s\nالمعمارية: %3$s\nالمصدر: %4$s</string>
+    <string name="ubuntu_installer_source_bundled">مرفق داخل التطبيق (بدون إنترنت)</string>
+    <string name="ubuntu_installer_source_download">تنزيل من خادم Ubuntu الرسمي</string>
+
+    <!-- UbuntuTerm: embedded Termux:API -->
+    <string name="share_file_chooser_title">Share with</string>
+
 </resources>

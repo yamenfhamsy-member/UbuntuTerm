@@ -22,6 +22,10 @@ import com.termux.R;
 import com.termux.app.event.SystemEventReceiver;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.TermuxTerminalSessionServiceClient;
+import com.termux.app.ubuntu.UbuntuConstants;
+import com.termux.app.ubuntu.UbuntuGuestSetup;
+import com.termux.app.ubuntu.UbuntuRootFsManager;
+import com.termux.app.ubuntu.UbuntuSessionLauncher;
 import com.termux.shared.termux.plugins.TermuxPluginUtils;
 import com.termux.shared.data.IntentUtils;
 import com.termux.shared.net.uri.UriUtils;
@@ -50,6 +54,7 @@ import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -580,6 +585,21 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         if (!Runner.TERMINAL_SESSION.equalsRunner(executionCommand.runner)) {
             Logger.logDebug(LOG_TAG, "Ignoring wrong runner \"" + executionCommand.runner + "\" command passed to createTermuxSession()");
             return null;
+        }
+
+        // UbuntuTerm: the Ubuntu guest is the default environment. Only sessions without an
+        // explicit executable are started inside Ubuntu, the failsafe session keeps using the
+        // host (Termux) shell.
+        if (executionCommand.executable == null && !executionCommand.isFailsafe) {
+            if (UbuntuRootFsManager.getState(this).installed && UbuntuSessionLauncher.isHostRuntimeReady()) {
+                String[] ubuntuCommand = UbuntuSessionLauncher.buildCommand(this);
+                executionCommand.executable = ubuntuCommand[0];
+                executionCommand.arguments = Arrays.copyOfRange(ubuntuCommand, 1, ubuntuCommand.length);
+                UbuntuGuestSetup.prepareSession(this);
+                Logger.logDebug(LOG_TAG, "Starting session inside the Ubuntu guest");
+            } else {
+                Logger.logWarn(LOG_TAG, "Ubuntu guest is not available, falling back to the host shell");
+            }
         }
 
         executionCommand.setShellCommandShellEnvironment = true;

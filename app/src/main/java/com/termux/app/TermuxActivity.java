@@ -27,6 +27,8 @@ import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.termux.R;
+import com.termux.app.ubuntu.UbuntuInstallerActivity;
+import com.termux.app.ubuntu.UbuntuRootFsManager;
 import com.termux.app.api.file.FileReceiverActivity;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
@@ -188,6 +190,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private static final int CONTEXT_MENU_HELP_ID = 7;
     private static final int CONTEXT_MENU_SETTINGS_ID = 8;
     private static final int CONTEXT_MENU_REPORT_ID = 9;
+
+    /** Extra used to start the host (Termux) shell instead of the Ubuntu guest. */
+    public static final String EXTRA_UBUNTU_HOST_MODE = "com.termux.app.EXTRA_UBUNTU_HOST_MODE";
 
     private static final String ARG_TERMINAL_TOOLBAR_TEXT_INPUT = "terminal_toolbar_text_input";
     private static final String ARG_ACTIVITY_RECREATED = "activity_recreated";
@@ -402,7 +407,19 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                         boolean launchFailsafe = false;
                         if (intent != null && intent.getExtras() != null) {
                             launchFailsafe = intent.getExtras().getBoolean(TERMUX_ACTIVITY.EXTRA_FAILSAFE_SESSION, false);
+                            // UbuntuTerm: the host (Termux) shell can be requested explicitly.
+                            launchFailsafe = launchFailsafe || intent.getExtras()
+                                .getBoolean(EXTRA_UBUNTU_HOST_MODE, false);
                         }
+
+                        // UbuntuTerm: the Ubuntu guest is the default environment, so it has to be
+                        // installed before the terminal is opened.
+                        if (!launchFailsafe && !UbuntuRootFsManager.getState(TermuxActivity.this).installed) {
+                            Logger.logInfo(LOG_TAG, "Ubuntu guest is not installed, opening the installer");
+                            startActivity(new Intent(TermuxActivity.this, UbuntuInstallerActivity.class));
+                            return;
+                        }
+
                         mTermuxTerminalSessionActivityClient.addNewSession(launchFailsafe, null);
                     } catch (WindowManager.BadTokenException e) {
                         // Activity finished - ignore.
