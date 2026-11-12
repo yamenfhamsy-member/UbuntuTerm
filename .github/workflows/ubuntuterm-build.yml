@@ -81,7 +81,7 @@ jobs:
           git remote add origin https://github.com/termux/termux-packages.git
           git fetch --depth 1 origin "$TERMUX_PACKAGES_COMMIT"
           git checkout FETCH_HEAD
-          git apply "$GITHUB_WORKSPACE/patches/termux-packages-ubuntuterm.patch"
+          git apply "$GITHUB_WORKSPACE/patches/termux-packages-ubutumerm.patch"
           mkdir -p output
 
       - name: Start the isolated Termux package-builder container
@@ -176,8 +176,9 @@ jobs:
             done
 
             echo ""
-            echo "--- ELF isolation check (no reference to /data/data/com.termux) ---"
+            echo "--- ELF isolation check (no functional reference to the Termux prefix) ---"
             ELF_COUNT=0
+            RUNPATH_COUNT=0
             while IFS= read -r -d '' f; do
               if [ "$(head -c 4 "$f" 2>/dev/null | wc -c)" -eq 4 ] && head -c 4 "$f" | grep -qa $'\x7fELF'; then
                 ELF_COUNT=$((ELF_COUNT + 1))
@@ -185,13 +186,21 @@ jobs:
                   echo "[FAIL] Original prefix in DT_RUNPATH of $f"
                   exit 1
                 fi
-                if strings "$f" | grep -q "/data/data/com.termux"; then
+                if strings "$f" | grep -q "/data/data/com.termux/files/usr"; then
                   echo "[FAIL] Original prefix string found in ELF binary $f"
                   exit 1
                 fi
+                if readelf -d "$f" 2>/dev/null | grep -E 'RUNPATH|RPATH' | grep -q "/data/data/com.ubutumerm.app/files/usr"; then
+                  RUNPATH_COUNT=$((RUNPATH_COUNT + 1))
+                fi
               fi
             done < <(find "$AUDIT_DIR" -type f -print0)
-            echo "[PASS] Audited $ELF_COUNT ELF binaries: ZERO references to /data/data/com.termux"
+            echo "[PASS] Audited $ELF_COUNT ELF binaries: no functional reference to /data/data/com.termux"
+            if [ "$RUNPATH_COUNT" -lt 1 ]; then
+              echo "[FAIL] No ELF binary uses the UbuntuTerm RUNPATH"
+              exit 1
+            fi
+            echo "[PASS] $RUNPATH_COUNT ELF binaries use /data/data/com.ubutumerm.app/files/usr as RUNPATH"
 
             echo ""
             echo "--- UbuntuTerm prefix check ---"
@@ -213,6 +222,13 @@ jobs:
             fi
             echo "[PASS] Zero active references to /data/data/com.termux"
           } | tee "$AUDIT_REPORT"
+
+      - name: Upload the compiled custom bootstrap
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: bootstrap-aarch64
+          path: termux-packages/output/bootstrap-aarch64.zip
+          retention-days: 30
 
       - name: Strip runtime-unneeded files and re-pack the bootstrap
         working-directory: termux-packages
@@ -240,13 +256,6 @@ jobs:
           (cd "$SLIM_DIR" && zip -r9 ../output/bootstrap-aarch64-slim.zip ./* > /dev/null)
           ls -lh output/bootstrap-aarch64-slim.zip
           cp -v output/bootstrap-aarch64-slim.zip output/bootstrap-aarch64.zip
-
-      - name: Upload the compiled custom bootstrap
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: bootstrap-aarch64
-          path: termux-packages/output/bootstrap-aarch64.zip
-          retention-days: 30
 
       - name: Prepare the bundled Ubuntu rootfs asset
         run: |

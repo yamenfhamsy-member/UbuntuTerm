@@ -193,6 +193,19 @@ index 48632aa..45c52d8 100644
 -TERMUX_SUBPKG_CONFLICTS="unbound (<< 1.15.0-1)"
 +TERMUX_SUBPKG_INCLUDE="share/doc/pyunbound-disabled"
 +TERMUX_SUBPKG_DESCRIPTION="Disabled pyunbound stub for standalone bootstrap build"
+diff --git a/packages/proot/build.sh b/packages/proot/build.sh
+index 8b89ba5..541f5d0 100644
+--- a/packages/proot/build.sh
++++ b/packages/proot/build.sh
+@@ -18,6 +18,8 @@ export PROOT_UNBUNDLE_LOADER=$TERMUX_PREFIX/libexec/proot
+ 
+ termux_step_pre_configure() {
+ 	CPPFLAGS+=" -DARG_MAX=131072 -DVERSION=\\\"${TERMUX_PKG_VERSION}\\\""
++	# UbuntuTerm: the diagnostic message of PRoot must not refer to the Termux package name.
++	sed -i "s|/data/data/com.termux/|${TERMUX_APP__DATA_DIR}/|g" "$TERMUX_PKG_SRCDIR/src/cli/cli.c"
+ }
+ 
+ termux_step_post_make_install() {
 diff --git a/packages/termux-tools/build.sh b/packages/termux-tools/build.sh
 index d455854..f7415f8 100644
 --- a/packages/termux-tools/build.sh
