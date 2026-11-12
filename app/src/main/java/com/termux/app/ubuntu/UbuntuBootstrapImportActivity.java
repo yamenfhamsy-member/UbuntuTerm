@@ -4,19 +4,12 @@ import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
 import com.termux.R;
 import com.termux.app.TermuxInstaller;
 import com.termux.shared.logger.Logger;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 
 /**
  * Activity that lets the user import a Termux bootstrap into the application.
@@ -71,31 +64,9 @@ public class UbuntuBootstrapImportActivity extends Activity {
         mStatus.setText(R.string.bootstrap_import_installing);
         mPickButton.setEnabled(false);
 
-        new Thread(() -> {
-            File tempFile = null;
-            try {
-                tempFile = new File(getCacheDir(), "imported-bootstrap.zip");
-                try (InputStream in = getContentResolver().openInputStream(uri);
-                     OutputStream out = new FileOutputStream(tempFile)) {
-                    if (in == null) throw new IOException("The selected file cannot be read");
-                    byte[] buffer = new byte[128 * 1024];
-                    int read;
-                    while ((read = in.read(buffer)) > 0)
-                        out.write(buffer, 0, read);
-                    out.flush();
-                }
-
-                TermuxInstaller.installBootstrapFromFile(this, tempFile, this::onBootstrapInstalled);
-            } catch (Exception e) {
-                Logger.logStackTraceWithMessage(LOG_TAG, "Failed to import the bootstrap", e);
-                runOnUiThread(() -> {
-                    mStatus.setText(getString(R.string.bootstrap_import_failed, String.valueOf(e.getMessage())));
-                    mPickButton.setEnabled(true);
-                });
-            } finally {
-                if (tempFile != null && tempFile.exists()) tempFile.delete();
-            }
-        }, "UbuntuTerm-bootstrap-import").start();
+        // The installer reads the archive in a background thread and starts the installation
+        // on the main thread, because it shows a progress dialog.
+        TermuxInstaller.installBootstrapFromUri(this, uri, this::onBootstrapInstalled, this::onBootstrapFailed);
     }
 
     private void onBootstrapInstalled() {
@@ -110,6 +81,13 @@ public class UbuntuBootstrapImportActivity extends Activity {
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             startActivity(intent);
             finish();
+        });
+    }
+
+    private void onBootstrapFailed(String message) {
+        runOnUiThread(() -> {
+            mStatus.setText(getString(R.string.bootstrap_import_failed, message));
+            mPickButton.setEnabled(true);
         });
     }
 }

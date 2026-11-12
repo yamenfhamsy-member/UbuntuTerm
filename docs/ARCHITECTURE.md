@@ -14,6 +14,7 @@ Ubuntu/glibc never replaces the Android runtime.**
 │  SafeTarExtractor       – hardened tar extraction                     │
 │  UbuntuSessionLauncher  – builds the PRoot command line               │
 │  UbuntuInstallerActivity– first run installation UI                   │
+│  UbuntuBootstrapImport  – imports the Termux bootstrap of the fork    │
 │  com.termux.api.*       – embedded Termux:API (receiver + socket)    │
 │                                                                       │
 │  Host prefix ($PREFIX = /data/data/com.ubutumerm.app/files/usr)       │
@@ -118,7 +119,8 @@ only processes of the application itself can use the bridge.
 ## Data flow of the first start
 
 ```
-launcher → TermuxActivity → TermuxService → bootstrap installed (first start only)
+launcher → TermuxActivity → TermuxService → bootstrap missing? → UbuntuBootstrapImportActivity
+             → the user selects bootstrap-aarch64.zip → it is installed into the prefix directory
          → Ubuntu guest missing? → UbuntuInstallerActivity
              → copy the bundled archive from the APK assets
              → verify SHA-256 (asset) → decompress with xz → verify SHA-256 (tar)

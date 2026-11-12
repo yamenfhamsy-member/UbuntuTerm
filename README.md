@@ -47,7 +47,8 @@ Everything runs **without root**: the Ubuntu guest is a userspace (glibc) system
 2. Open the application: the screen **استيراد البوتستراب** appears.
 3. Press **اختر ملف البوتستراب** and select `bootstrap-aarch64.zip` from the downloads.
 4. The application installs the bootstrap and then unpacks the Ubuntu guest that is bundled
-   inside the APK.
+   inside the APK. If the import fails, the screen reports the error and the file can be
+   selected again.
 5. The terminal opens directly in Ubuntu, the copyright notice is printed for every session.
 * `apt` works inside the guest: `apt-get update`, `apt-get install python3 git curl
   ca-certificates`, `apt-get check`, `dpkg --audit`, `dpkg --print-architecture` → `arm64`.

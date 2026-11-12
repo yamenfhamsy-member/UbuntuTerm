@@ -86,10 +86,18 @@ root of a Linux system is a security critical operation.
 
 * no absolute member paths,
 * no `..` path components,
-* the real path of the parent directory of every written file must stay inside the extraction
-  root (prevents symlink redirection attacks),
-* symbolic links must be relative and must not escape the root,
-* hard links must point inside the root.
+* the real path of the deepest existing ancestor of a member must stay inside the extraction
+  root, checked before anything is created and again after the parent directories were created
+  (this prevents symlink redirection attacks),
+* a regular file is never written through an existing symbolic link: the destination is unlinked
+  first and the file is created with `NOFOLLOW_LINKS`,
+* a symbolic link with a relative target must not escape the root. An absolute target is
+  allowed, because the root of the file system of the guest is the rootfs: the official Ubuntu
+  base image contains links like `usr/bin/pager -> /etc/alternatives/pager` and
+  `var/run -> /run`, they point into the guest and not to the file system of the device,
+* hard links must point to a regular file inside the root,
+* the permission bits of the archive are applied exactly, including the setuid, setgid and
+  sticky bits, so that the result does not depend on the umask of the device.
 
 ## 7. The installation is atomic
 

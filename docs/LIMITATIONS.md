@@ -30,6 +30,7 @@ unavailable or restricted.
 | The Termux:API methods that need dangerous permissions are not exposed | Camera, SMS, contacts, call log, location, microphone, USB, NFC and fingerprint are not part of the embedded implementation |
 | The notification listener (Termux:API `NotificationList`) is not available | It requires a separate notification listener service |
 | No `Termux:Boot`, `Termux:Tasker`, `Termux:Widget` add-ons | They are separate applications that would have to be signed with the same key; the embedded API covers the functionality that is needed inside Ubuntu |
+| The Termux bootstrap is not part of the APK | it has to match the application id of the fork, so the user imports `bootstrap-aarch64.zip` from the storage of the device with the import screen of the application |
 | The APK is signed with a test key unless release secrets are configured | A release key must never be committed to the repository |
 
 ## Behavioural notes

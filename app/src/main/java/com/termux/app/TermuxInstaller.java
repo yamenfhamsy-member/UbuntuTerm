@@ -3,9 +3,14 @@ package com.termux.app;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.ContentResolver;
 import android.content.Context;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.os.ParcelFileDescriptor;
+import android.provider.OpenableColumns;
 import android.system.Os;
 import android.util.Pair;
 import android.view.WindowManager;
@@ -23,15 +28,20 @@ import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.TermuxUtils;
 import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -123,25 +133,138 @@ public final class TermuxInstaller {
      * Installs a bootstrap from a zip file that the user selected, for example from the
      * storage of the device.
      *
+     * <p>The file is read in a background thread, the installation itself is started on the
+     * main thread because it shows a progress dialog.
+     *
      * @param activity the activity
-     * @param zipFile  the bootstrap zip file
-     * @param whenDone run after the installation finished
+     * @param uri      the uri of the bootstrap zip file
+     * @param whenDone run on the main thread after the installation finished
+     * @param onError  run on the main thread when the archive could not be read
      */
-    public static void installBootstrapFromFile(final Activity activity, final File zipFile, final Runnable whenDone) {
-        try {
-            byte[] bytes = new byte[(int) Math.min(zipFile.length(), Integer.MAX_VALUE)];
-            try (FileInputStream in = new FileInputStream(zipFile)) {
-                int offset = 0;
-                while (offset < bytes.length) {
-                    int read = in.read(bytes, offset, bytes.length - offset);
-                    if (read < 0) break;
-                    offset += read;
+    public static void installBootstrapFromUri(final Activity activity, final Uri uri, final Runnable whenDone,
+                                                final Consumer<String> onError) {
+        new Thread(() -> {
+            try {
+                final byte[] bytes = readUriBytes(activity, uri);
+                activity.runOnUiThread(() -> installBootstrapBytes(activity, bytes, whenDone));
+            } catch (Exception | OutOfMemoryError e) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "Failed to read the bootstrap archive", e);
+                final String message = e.getMessage() != null ? e.getMessage() : e.toString();
+                activity.runOnUiThread(() -> {
+                    showBootstrapErrorDialog(activity, whenDone,
+                        Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)));
+                    if (onError != null) onError.accept(message);
+                });
+            }
+        }, "TermuxInstaller-bootstrap-import").start();
+    }
+
+    /**
+     * Read the content of the selected file.
+     *
+     * <p>The size of the file is queried first, so that the array can be allocated with the
+     * exact size and the content of the file does not have to be copied a second time.
+     */
+    private static byte[] readUriBytes(Activity activity, Uri uri) throws IOException {
+        ContentResolver resolver = activity.getContentResolver();
+        long size = queryContentSize(resolver, uri);
+        if (size <= 0) {
+            // The provider does not report the size of the file: it is copied into a temporary
+            // file first, so that the array can be allocated with the exact size as well.
+            File temporaryFile = File.createTempFile("bootstrap", ".zip", activity.getCacheDir());
+            try {
+                copyUriToFile(resolver, uri, temporaryFile);
+                return readFileBytes(temporaryFile);
+            } finally {
+                if (!temporaryFile.delete()) temporaryFile.deleteOnExit();
+            }
+        }
+        if (size > Integer.MAX_VALUE)
+            throw new IOException("The selected file is too large to be installed");
+        return readUriBytes(resolver, uri, (int) size);
+    }
+
+    /** The size of the selected file, {@code -1} when it is unknown. */
+    private static long queryContentSize(ContentResolver resolver, Uri uri) {
+        try (Cursor cursor = resolver.query(uri, new String[]{OpenableColumns.SIZE}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int column = cursor.getColumnIndex(OpenableColumns.SIZE);
+                if (column >= 0 && !cursor.isNull(column)) {
+                    long size = cursor.getLong(column);
+                    if (size > 0) return size;
                 }
             }
-            installBootstrapBytes(activity, bytes, whenDone);
-        } catch (IOException e) {
-            showBootstrapErrorDialog(activity, whenDone, Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)));
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Cannot query the size of the selected file: " + e.getMessage());
         }
+        // The provider does not report the size, it is taken from the file descriptor instead.
+        try (ParcelFileDescriptor descriptor = resolver.openFileDescriptor(uri, "r")) {
+            if (descriptor != null) {
+                long size = descriptor.getStatSize();
+                if (size > 0) return size;
+            }
+        } catch (Exception e) {
+            Logger.logError(LOG_TAG, "Cannot determine the size of the selected file: " + e.getMessage());
+        }
+        return -1;
+    }
+
+    /** Read exactly {@code size} bytes of the selected file. */
+    private static byte[] readUriBytes(ContentResolver resolver, Uri uri, int size) throws IOException {
+        byte[] bytes = new byte[size];
+        try (InputStream in = resolver.openInputStream(uri)) {
+            if (in == null) throw new IOException("The selected file cannot be read");
+            int offset = 0;
+            while (offset < size) {
+                int read = in.read(bytes, offset, size - offset);
+                if (read < 0) break;
+                offset += read;
+            }
+            if (offset < size)
+                throw new IOException("The selected file is shorter than announced (" + offset + " of " + size + " bytes)");
+            if (in.read() >= 0) {
+                // The provider announced a size that is too small, the rest of the file is read
+                // into a larger array.
+                ByteArrayOutputStream out = new ByteArrayOutputStream(size + 64 * 1024);
+                out.write(bytes, 0, offset);
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
+                return out.toByteArray();
+            }
+        }
+        return bytes;
+    }
+
+    /** Copy the selected file into a temporary file. */
+    private static void copyUriToFile(ContentResolver resolver, Uri uri, File target) throws IOException {
+        try (InputStream in = resolver.openInputStream(uri);
+             OutputStream out = new FileOutputStream(target)) {
+            if (in == null) throw new IOException("The selected file cannot be read");
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
+            out.flush();
+        }
+    }
+
+    /** Read the content of a file into an array that is allocated with the exact size. */
+    private static byte[] readFileBytes(File file) throws IOException {
+        long size = file.length();
+        if (size > Integer.MAX_VALUE)
+            throw new IOException("The selected file is too large to be installed");
+        byte[] bytes = new byte[(int) size];
+        try (InputStream in = new BufferedInputStream(new FileInputStream(file), 64 * 1024)) {
+            int offset = 0;
+            while (offset < bytes.length) {
+                int read = in.read(bytes, offset, bytes.length - offset);
+                if (read < 0) break;
+                offset += read;
+            }
+            if (offset < bytes.length)
+                throw new IOException("The selected file is truncated (" + offset + " of " + bytes.length + " bytes)");
+        }
+        return bytes;
     }
 
     /**
@@ -152,7 +275,7 @@ public final class TermuxInstaller {
      * @param whenDone  run after the installation finished
      */
     private static void installBootstrapBytes(final Activity activity, final byte[] zipBytes, final Runnable whenDone) {
-        final ProgressDialog progress = ProgressDialog.show(activity, null, activity.getString(R.string.bootstrap_installer_body), true, false);
+        final ProgressDialog progress = showProgressDialog(activity);
         new Thread() {
             @Override
             public void run() {
@@ -270,7 +393,7 @@ public final class TermuxInstaller {
                 } finally {
                     activity.runOnUiThread(() -> {
                         try {
-                            progress.dismiss();
+                            if (progress != null) progress.dismiss();
                         } catch (RuntimeException e) {
                             // Activity already dismissed - ignore.
                         }
@@ -278,6 +401,21 @@ public final class TermuxInstaller {
                 }
             }
         }.start();
+    }
+
+    /**
+     * Show the progress dialog of the installation.
+     *
+     * @return the dialog or {@code null} when the activity is gone.
+     */
+    private static ProgressDialog showProgressDialog(Activity activity) {
+        if (activity.isFinishing() || activity.isDestroyed()) return null;
+        try {
+            return ProgressDialog.show(activity, null, activity.getString(R.string.bootstrap_installer_body), true, false);
+        } catch (WindowManager.BadTokenException e) {
+            // The activity was dismissed while the dialog was created - ignore.
+            return null;
+        }
     }
 
     /**

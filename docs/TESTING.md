@@ -8,7 +8,7 @@ report (`final-output/reports/`) and in the Telegram status message.
 | Test | Tool | Expected result |
 |---|---|---|
 | Gradle build | `./gradlew assembleRelease` | APK is produced |
-| Unit tests | `./gradlew testReleaseUnitTest` | all tests pass (includes the tar extractor security tests) |
+| Unit tests | `./gradlew testReleaseUnitTest` | all tests pass (includes the tar extractor security tests: a symlink with an absolute target is created, a relative target that escapes the root is refused, no member is written outside of the extraction root and the permissions of the archive are applied exactly) |
 | Package id | `aapt2 dump badging` | `name='com.ubutumerm.app'` |
 | Application label | `aapt2 dump badging` | `application-label:'UbuntuTerm'` |
 | Version | `aapt2 dump badging` | `versionCode`/`versionName` are printed into the report |
@@ -51,13 +51,15 @@ workflow. The list is part of the manual test plan:
 
 1. install the APK on an `arm64-v8a` device,
 2. start the application → the installation screen appears,
-3. the installation completes and Ubuntu is entered automatically,
-4. the terminal shows the Ubuntu prompt (`root@…`) and `cat /etc/os-release` reports
+3. import a bootstrap archive from the file picker and confirm the progress dialog appears and
+   the app does not crash,
+4. the installation completes and Ubuntu is entered automatically,
+5. the terminal shows the Ubuntu prompt (`root@…`) and `cat /etc/os-release` reports
    `26.04.1`,
-5. close and reopen the application → Ubuntu is entered again without reinstalling,
-6. install the new APK over the old one → the rootfs, the home directory and the installed
+6. close and reopen the application → Ubuntu is entered again without reinstalling,
+7. install the new APK over the old one → the rootfs, the home directory and the installed
    packages are still there,
-7. `termux-toast` shows a toast, `termux-battery-status` returns JSON,
+8. `termux-toast` shows a toast, `termux-battery-status` returns JSON,
    `termux-clipboard-set`/`termux-clipboard-get` round trip the clipboard.
 
 ## Layer 3 – Ubuntu guest tests (executed inside the guest)
