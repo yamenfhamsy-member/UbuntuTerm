@@ -37,9 +37,6 @@ env:
   UBUNTU_ARCHIVE: ubuntu-base-26.04.1-base-arm64.tar.gz
   UBUNTU_URL: https://cdimage.ubuntu.com/ubuntu-base/releases/26.04.1/release/ubuntu-base-26.04.1-base-arm64.tar.gz
   UBUNTU_SHA256: 5a1906794ced63a71a8119c3f211ef5f0bbe0a243001b4bbd41fdf80c5b219fd
-  # The run whose bootstrap artifact is embedded when no run id is given. The artifact of
-  # that run expires after 90 days, the build falls back to the placeholder then.
-  UBUNTUTERM_BOOTSTRAP_FALLBACK_RUN_ID: "43308960630"
 
 jobs:
   build:
@@ -83,32 +80,18 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Determine the bootstrap run
-        run: |
-          set -euo pipefail
-          RUN_ID="${{ inputs.bootstrap_run_id }}"
-          if [ -z "$RUN_ID" ]; then
-            # The bootstrap of a previous run is reused, so that every build of the fork
-            # contains a working bootstrap. The artifact of the fallback run expires after
-            # 90 days, then the placeholder below is embedded instead.
-            RUN_ID="$UBUNTUTERM_BOOTSTRAP_FALLBACK_RUN_ID"
-          fi
-          echo "BOOTSTRAP_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
-          echo "[INFO] The bootstrap is taken from the run $RUN_ID"
-
       - name: Download a pre-built bootstrap from a prior run
         id: bootstrap
-        if: ${{ env.BOOTSTRAP_RUN_ID != '' }}
-        continue-on-error: true
+        if: ${{ inputs.bootstrap_run_id != '' }}
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           name: bootstrap-aarch64
-          run-id: ${{ env.BOOTSTRAP_RUN_ID }}
+          run-id: ${{ inputs.bootstrap_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: termux-packages/output
 
       - name: Create the bootstrap placeholder
-        if: ${{ env.BOOTSTRAP_RUN_ID == '' || steps.bootstrap.outcome != 'success' }}
+        if: ${{ inputs.bootstrap_run_id == '' }}
         run: |
           set -euo pipefail
           # UbuntuTerm does not ship a Termux bootstrap: the bootstrap has to be compiled for
