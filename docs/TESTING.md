@@ -8,7 +8,7 @@ report (`final-output/reports/`) and in the Telegram status message.
 | Test | Tool | Expected result |
 |---|---|---|
 | Gradle build | `./gradlew assembleRelease` | APK is produced |
-| Unit tests | `./gradlew testReleaseUnitTest` | all tests pass (includes the tar extractor security tests: a symlink with an absolute target is created, a relative target that escapes the root is refused, no member is written outside of the extraction root and the permissions of the archive are applied exactly) |
+| Unit tests | `./gradlew testReleaseUnitTest` | all tests pass (the result of every test is printed into the build log) (includes the tar extractor security tests: a symlink with an absolute target is created, a relative target that escapes the root is refused, no member is written outside of the extraction root and the permissions of the archive are applied exactly) |
 | Package id | `aapt2 dump badging` | `name='com.ubutumerm.app'` |
 | Application label | `aapt2 dump badging` | `application-label:'UbuntuTerm'` |
 | Version | `aapt2 dump badging` | `versionCode`/`versionName` are printed into the report |
@@ -20,7 +20,7 @@ report (`final-output/reports/`) and in the Telegram status message.
 
 ## Result of the last build
 
-Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/43325123083>
+Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/43335894767>
 
 | Check | Result |
 |---|---|
@@ -36,8 +36,8 @@ Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/433
 | No Termux bootstrap inside the APK | Pass (import from the device storage) |
 | Telegram delivery (`sendDocument` and `sendMessage`) | Pass |
 
-APK: `UbuntuTerm-arm64-v8a.apk`, 28,231,610 bytes,
-SHA-256 `913097eb65bd98876b31d46c8243a4f6c0788cfd657020a422285b0f49ad1870`.
+APK: `UbuntuTerm-arm64-v8a.apk`, 28,111,594 bytes,
+SHA-256 `164f54734c4840671f06664cf25d6d1bc6eaeeb18a8327b1b55b3d183c3af16a`.
 
 The bootstrap that has to be imported on the device is published as the artifact
 `bootstrap-aarch64` of the run
