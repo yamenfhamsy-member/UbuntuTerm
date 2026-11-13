@@ -126,6 +126,40 @@ run_actionlint() {
     fi
 }
 
+# The pinned revision of every action that the workflows use. A typo in a commit hash is not
+# reported by actionlint, the build fails with "unable to find version" instead, so the
+# references are checked here.
+PINNED_ACTIONS=(
+    "actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830"
+    "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09"
+    "actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0"
+    "actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961"
+    "actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4"
+)
+
+check_action_references() {
+    log "checking the references of the actions"
+    local reference
+    local error=0
+    while IFS= read -r reference; do
+        case "$reference" in
+            *"@v"[0-9]*) continue ;; # a version tag is resolved by GitHub itself
+        esac
+        if ! printf '%s\n' "${PINNED_ACTIONS[@]}" | grep -qxF "$reference"; then
+            echo "[FAIL] The action $reference is not one of the pinned actions" >&2
+            error=1
+        fi
+    done < <(
+        grep -rhoE "uses: [^ ]+" "$REPO_ROOT/.github/workflows" 2>/dev/null |
+            sed 's/^uses: //' | sed 's/ *#.*$//' | sort -u
+    )
+    if [ "$error" -ne 0 ]; then
+        fail "the workflows use an action that is not pinned"
+        return
+    fi
+    log "the action references: OK"
+}
+
 # --- yamllint -----------------------------------------------------------------------------------
 
 ensure_yamllint() {
@@ -178,6 +212,7 @@ run_javac() {
 
 run_shellcheck
 run_actionlint
+check_action_references
 run_yamllint
 run_javac
 
