@@ -37,6 +37,9 @@ env:
   UBUNTU_ARCHIVE: ubuntu-base-26.04.1-base-arm64.tar.gz
   UBUNTU_URL: https://cdimage.ubuntu.com/ubuntu-base/releases/26.04.1/release/ubuntu-base-26.04.1-base-arm64.tar.gz
   UBUNTU_SHA256: 5a1906794ced63a71a8119c3f211ef5f0bbe0a243001b4bbd41fdf80c5b219fd
+  # The run whose bootstrap artifact is embedded when no run id is given. The artifact of
+  # that run expires after 90 days, the build falls back to the placeholder then.
+  UBUNTUTERM_BOOTSTRAP_FALLBACK_RUN_ID: "43308960630"
 
 jobs:
   build:
@@ -80,23 +83,39 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Determine the bootstrap run
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ inputs.bootstrap_run_id }}"
+          if [ -z "$RUN_ID" ]; then
+            # The bootstrap of a previous run is reused, so that every build of the fork
+            # contains a working bootstrap. The artifact of the fallback run expires after
+            # 90 days, then the placeholder below is embedded instead.
+            RUN_ID="$UBUNTUTERM_BOOTSTRAP_FALLBACK_RUN_ID"
+          fi
+          echo "BOOTSTRAP_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+          echo "[INFO] The bootstrap is taken from the run $RUN_ID"
+
       - name: Download a pre-built bootstrap from a prior run
-        if: ${{ inputs.bootstrap_run_id != '' }}
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        id: bootstrap
+        if: ${{ env.BOOTSTRAP_RUN_ID != '' }}
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fddf6788551b99b062d0335ce0 # v5
         with:
           name: bootstrap-aarch64
-          run-id: ${{ inputs.bootstrap_run_id }}
+          run-id: ${{ env.BOOTSTRAP_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: termux-packages/output
 
       - name: Create the bootstrap placeholder
-        if: ${{ inputs.bootstrap_run_id == '' }}
+        if: ${{ env.BOOTSTRAP_RUN_ID == '' || steps.bootstrap.outcome != 'success' }}
         run: |
           set -euo pipefail
           # UbuntuTerm does not ship a Termux bootstrap: the bootstrap has to be compiled for
           # the application id of the fork and is imported by the user from the device storage.
           # A placeholder is embedded so that the native library can be linked, it only
           # contains a marker file and is replaced as soon as the user imports a bootstrap.
+          rm -f "$GITHUB_WORKSPACE/termux-packages/output/bootstrap-aarch64.zip"
           PLACEHOLDER_DIR="$(mktemp -d)"
           cd "$PLACEHOLDER_DIR"
           # The separator of the symlink definitions is the Unicode arrow U+2190.
@@ -108,6 +127,17 @@ jobs:
             SYMLINKS.txt ubuntuter-bootstrap-placeholder > /dev/null
           rm -rf "$PLACEHOLDER_DIR"
           ls -lh "$GITHUB_WORKSPACE/termux-packages/output/bootstrap-aarch64.zip"
+
+      - name: Record the state of the bootstrap
+        run: |
+          set -euo pipefail
+          ARCHIVE="$GITHUB_WORKSPACE/termux-packages/output/bootstrap-aarch64.zip"
+          if [ -f "$ARCHIVE" ] && [ "$(stat -c%s "$ARCHIVE")" -gt 100000 ]; then
+            echo "embedded" > "$GITHUB_WORKSPACE/termux-packages/output/bootstrap-kind.txt"
+          else
+            echo "placeholder" > "$GITHUB_WORKSPACE/termux-packages/output/bootstrap-kind.txt"
+          fi
+          cat "$GITHUB_WORKSPACE/termux-packages/output/bootstrap-kind.txt"
 
       - name: Stage the bootstrap
         run: |
@@ -252,6 +282,7 @@ jobs:
             exit 1
           fi
           cp -v "$APK" "$OUT/apk/UbuntuTerm-arm64-v8a.apk"
+          cp -v termux-packages/output/bootstrap-kind.txt "$OUT/reports/" 2>/dev/null || true
           cp -v termux-packages/output/bootstrap-aarch64-audit.txt "$OUT/logs/" 2>/dev/null || true
           cp -v termux-packages/output/bootstrap-aarch64-build.log "$OUT/logs/" 2>/dev/null || true
 
@@ -377,6 +408,14 @@ jobs:
 
           APK_SIZE=$(stat -c%s "$APK")
           APK_SHA256=$(sha256sum "$APK" | awk '{print $1}')
+          BOOTSTRAP_KIND=$(cat delivery/reports/bootstrap-kind.txt 2>/dev/null || echo unknown)
+          if [ "$BOOTSTRAP_KIND" = "embedded" ]; then
+            BOOTSTRAP_LINE="Bootstrap: embedded in the APK, the application is ready to use"
+            BOOTSTRAP_LINE_AR="مُضمَّن داخل التطبيق، التطبيق جاهز للاستخدام"
+          else
+            BOOTSTRAP_LINE="Bootstrap: not embedded, import bootstrap-aarch64.zip from the device storage"
+            BOOTSTRAP_LINE_AR="غير مُضمَّن، يجب استيراد bootstrap-aarch64.zip من ذاكرة الجهاز"
+          fi
           if grep -q "UbuntuTerm-arm64-v8a.apk" "$SHA256_FILE" 2>/dev/null; then
             echo "[INFO] The APK is listed in the checksum file"
           fi
@@ -391,6 +430,7 @@ jobs:
           Architecture: arm64-v8a
           APK Size: $APK_SIZE bytes
           SHA256: $APK_SHA256
+          $BOOTSTRAP_LINE
           Build Status: success
           GitHub Actions: $RUN_URL
           EOF
@@ -437,6 +477,7 @@ jobs:
           المعمارية: arm64-v8a
           حجم APK: $APK_SIZE bytes
           SHA256: $APK_SHA256
+          البوتستراب: $BOOTSTRAP_LINE_AR
           نتيجة الاختبارات: تم التحقق من التوقيع والمعمارية ومعرّف الحزمة (apksigner / aapt2 / unzip)
           رابط GitHub Actions: $RUN_URL
           رابط التنزيل (Artifact): $RUN_URL/artifacts
