@@ -21,6 +21,9 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.util.Locale;
 import java.util.zip.GZIPOutputStream;
 
 public class SafeTarExtractorTest {
@@ -295,6 +298,53 @@ public class SafeTarExtractorTest {
         Path varRun = target.toPath().resolve("var/run");
         Assert.assertTrue(Files.isSymbolicLink(varRun));
         Assert.assertEquals(Paths.get("/run"), Files.readSymbolicLink(varRun));
+    }
+
+    /**
+     * The application decompresses the bundled archive and extracts it in one pass and verifies
+     * the checksum of the uncompressed archive while it is extracted. The extractor stops at the
+     * end of the archive, so the rest of the stream has to be read for the checksum to be the
+     * checksum of the whole archive.
+     */
+    @Test
+    public void verifiesTheChecksumOfTheBundledRootfsWhileItIsExtracted() throws Exception {
+        File archive = findBundledRootfs();
+        Assume.assumeTrue("The bundled rootfs is not available", archive.exists());
+
+        String expected = digestOfTheDecompressedArchive(archive);
+        File target = temporaryFolder.newFolder("rootfs-bundled-checksum");
+
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (InputStream in = openBundledRootfs(archive);
+             DigestInputStream digestIn = new DigestInputStream(in, digest)) {
+            SafeTarExtractor.extract(digestIn, archive.length(), target, null);
+            byte[] rest = new byte[64 * 1024];
+            while (digestIn.read(rest) > 0) {
+                // The padding of the archive is not used.
+            }
+        }
+
+        Assert.assertEquals(expected, toHex(digest.digest()));
+    }
+
+    /** The checksum of the uncompressed bundled archive. */
+    private static String digestOfTheDecompressedArchive(File archive) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (InputStream in = openBundledRootfs(archive)) {
+            byte[] buffer = new byte[128 * 1024];
+            int read;
+            while ((read = in.read(buffer)) > 0)
+                digest.update(buffer, 0, read);
+        }
+        return toHex(digest.digest());
+    }
+
+    /** The lower case hexadecimal representation of a digest. */
+    private static String toHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes)
+            sb.append(String.format(Locale.US, "%02x", b));
+        return sb.toString();
     }
 
     /** Open the compressed bundled rootfs. */

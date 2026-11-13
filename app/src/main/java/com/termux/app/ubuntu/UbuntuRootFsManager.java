@@ -12,6 +12,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.DigestInputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
@@ -140,29 +141,20 @@ public class UbuntuRootFsManager {
             mkdirs(downloadDir);
 
             Source source = getSource(context);
-            File tarArchive;
-            boolean gzipped;
-
-            if (source == Source.BUNDLED) {
-                tarArchive = provisionFromBundle(context, downloadDir, listener);
-                gzipped = false;
-            } else {
-                tarArchive = provisionFromNetwork(context, downloadDir, listener);
-                gzipped = true;
-            }
-
-            listener.onProgress(Phase.EXTRACTING, 0, "جارٍ فك ضغط نظام الملفات…");
 
             // Always extract into a fresh staging directory so that a partial extraction can never
             // be mistaken for a complete installation.
             deleteRecursive(stagingDir);
             mkdirs(stagingDir);
-            if (gzipped) {
-                SafeTarExtractor.extract(tarArchive, stagingDir, extractionProgress(listener));
+
+            if (source == Source.BUNDLED) {
+                // The bundled archive is decompressed and extracted in one pass, so that the
+                // uncompressed tar archive (110 MB) never has to be written to the device.
+                extractBundledArchive(context, downloadDir, stagingDir, listener);
             } else {
-                try (InputStream in = new BufferedInputStream(new FileInputStream(tarArchive), 64 * 1024)) {
-                    SafeTarExtractor.extract(in, tarArchive.length(), stagingDir, extractionProgress(listener));
-                }
+                File tarArchive = provisionFromNetwork(context, downloadDir, listener);
+                listener.onProgress(Phase.EXTRACTING, 0, "جارٍ فك ضغط نظام الملفات…");
+                SafeTarExtractor.extract(tarArchive, stagingDir, extractionProgress(listener));
             }
 
             listener.onProgress(Phase.FINALIZING, 0, "جارٍ تجهيز بيئة Ubuntu…");
@@ -190,7 +182,10 @@ public class UbuntuRootFsManager {
         } catch (Throwable t) {
             Log.e(LOG_TAG, "Ubuntu rootfs installation failed", t);
             deleteRecursive(new File(UbuntuConstants.STAGING_DIR));
-            listener.onError(t.getMessage() != null ? t.getMessage() : t.toString(), t);
+            String message = t.getMessage() != null ? t.getMessage() : t.toString();
+            if (message.contains("ENOSPC") || message.contains("No space left"))
+                message = "لا توجد مساحة كافية على الجهاز لتثبيت Ubuntu، احذف بعض الملفات وحاول مرة أخرى";
+            listener.onError(message, t);
         }
     }
 
@@ -212,8 +207,8 @@ public class UbuntuRootFsManager {
      *
      * @return the uncompressed tar archive that has to be extracted.
      */
-    private static File provisionFromBundle(Context context, File downloadDir, InstallListener listener)
-        throws IOException {
+    private static void extractBundledArchive(Context context, File downloadDir, File stagingDir,
+                                               InstallListener listener) throws IOException {
         Properties manifest = readManifest(context);
 
         String sourceSha256 = manifest.getProperty("source_sha256");
@@ -241,30 +236,43 @@ public class UbuntuRootFsManager {
             throw new IOException("فشل التحقق من بصمة الحزمة: المتوقع " + archiveSha256 +
                 " والموجود " + actualArchiveSha256);
 
-        File tar;
-        if (archiveFormat == null || archiveFormat.equals("tar")) {
-            tar = archive;
-        } else if (archiveFormat.equals("xz")) {
-            listener.onProgress(Phase.DECOMPRESSING, 0, "جارٍ فك ضغط الحزمة…");
-            tar = new File(downloadDir, archiveName + ".tar");
-            deleteRecursive(tar);
-            decompressWithXz(archive, tar, listener);
-        } else if (archiveFormat.equals("gz")) {
-            listener.onProgress(Phase.DECOMPRESSING, 0, "جارٍ فك ضغط الحزمة…");
-            tar = new File(downloadDir, archiveName + ".tar");
-            deleteRecursive(tar);
-            decompressWithGzip(archive, tar, listener);
-        } else {
+        String format = archiveFormat == null ? "tar" : archiveFormat;
+        if (!format.equals("xz") && !format.equals("gz") && !format.equals("tar"))
             throw new IOException("صيغة أرشيف غير مدعومة: " + archiveFormat);
+
+        listener.onProgress(Phase.DECOMPRESSING, 0, "جارٍ فك ضغط الحزمة…");
+        listener.onProgress(Phase.EXTRACTING, 0, "جارٍ فك ضغط نظام الملفات…");
+
+        // The digest is computed while the archive is extracted, so that the checksum of the
+        // uncompressed tar archive is verified without writing it to the device.
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IOException("SHA-256 is not available on this device", e);
+        }
+        try (InputStream fileIn = new BufferedInputStream(new FileInputStream(archive), 64 * 1024);
+             InputStream in = format.equals("xz")
+                 ? new XZCompressorInputStream(fileIn)
+                 : (format.equals("gz") ? new java.util.zip.GZIPInputStream(fileIn, 64 * 1024) : fileIn);
+             DigestInputStream digestIn = new DigestInputStream(in, digest)) {
+            SafeTarExtractor.extract(digestIn, archive.length(), stagingDir, extractionProgress(listener));
+            // The extractor stops at the end of the archive, the rest of the stream is read so
+            // that the checksum covers the whole tar archive and not only its first part.
+            byte[] rest = new byte[64 * 1024];
+            while (digestIn.read(rest) > 0) {
+                // The padding of the archive is not used.
+            }
         }
 
         listener.onProgress(Phase.VERIFYING, 0, "جارٍ التحقق من سلامة نظام الملفات…");
-        String actualTarSha256 = sha256(tar);
+        String actualTarSha256 = toHex(digest.digest());
         if (!tarSha256.equalsIgnoreCase(actualTarSha256))
             throw new IOException("فشل التحقق من بصمة نظام الملفات: المتوقع " + tarSha256 +
                 " والموجود " + actualTarSha256);
 
-        return tar;
+        // The archive is not needed any more, the space is given back to the system.
+        deleteRecursive(archive);
     }
 
     /**
@@ -333,43 +341,6 @@ public class UbuntuRootFsManager {
         } catch (IOException e) {
             return 1;
         }
-    }
-
-    /**
-     * Decompress an xz compressed file.
-     *
-     * <p>The decompression is done in pure Java (XZ/LZMA2) so that it also works when the
-     * application was installed without a Termux bootstrap.
-     */
-    private static void decompressWithXz(File source, File target, InstallListener listener) throws IOException {
-        try (InputStream in = new XZCompressorInputStream(new BufferedInputStream(new FileInputStream(source), 64 * 1024));
-             OutputStream out = new FileOutputStream(target)) {
-            byte[] buffer = new byte[128 * 1024];
-            long written = 0;
-            int read;
-            while ((read = in.read(buffer)) > 0) {
-                out.write(buffer, 0, read);
-                written += read;
-                listener.onProgress(Phase.DECOMPRESSING, (int) Math.min(99, written / (1024 * 1024)),
-                    "جارٍ فك ضغط الحزمة…");
-            }
-            out.flush();
-        }
-        listener.onProgress(Phase.DECOMPRESSING, 90, "تم فك ضغط الحزمة");
-    }
-
-    /** Decompress a gzip compressed file. */
-    private static void decompressWithGzip(File source, File target, InstallListener listener) throws IOException {
-        try (InputStream in = new BufferedInputStream(new FileInputStream(source), 64 * 1024);
-             java.util.zip.GZIPInputStream gzipIn = new java.util.zip.GZIPInputStream(in, 64 * 1024);
-             OutputStream out = new FileOutputStream(target)) {
-            byte[] buffer = new byte[128 * 1024];
-            int read;
-            while ((read = gzipIn.read(buffer)) > 0)
-                out.write(buffer, 0, read);
-            out.flush();
-        }
-        listener.onProgress(Phase.DECOMPRESSING, 90, "تم فك ضغط الحزمة");
     }
 
     private static void download(Context context, File target, InstallListener listener) throws IOException {
@@ -472,8 +443,13 @@ public class UbuntuRootFsManager {
             while ((read = in.read(buffer)) > 0)
                 digest.update(buffer, 0, read);
         }
+        return toHex(digest.digest());
+    }
+
+    /** The lower case hexadecimal representation of a digest. */
+    private static String toHex(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
-        for (byte b : digest.digest())
+        for (byte b : bytes)
             sb.append(String.format(Locale.US, "%02x", b));
         return sb.toString();
     }

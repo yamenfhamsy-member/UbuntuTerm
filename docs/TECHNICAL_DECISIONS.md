@@ -59,9 +59,11 @@ first start works immediately.
 
 * **Bundled (default):** the official image is downloaded during the CI build, verified
   against the pinned official SHA-256, converted to an xz compressed tar and stored in
-  `app/src/main/assets/ubuntu/`. On the first start the archive is copied out of the APK,
-  verified (asset checksum), decompressed with the host `xz` and verified again (tar
-  checksum) before it is extracted.
+  `app/src/main/assets/ubuntu/`. On the first start the archive is copied out of the APK and
+  verified (asset checksum). It is then decompressed with the Java XZ decoder of
+  `org.tukaani:xz` while it is extracted, the checksum of the uncompressed tar archive is
+  verified again (tar checksum) at the same time. The archive is never written to the device
+  as a tar file, so the installation needs about 120 MB of free space instead of 240 MB.
 * **Download (fallback):** if the bundled archive is missing, the official image is downloaded
   from `cdimage.ubuntu.com` and verified against the SHA-256 that is pinned in the source code
   (`UbuntuConstants.ROOTFS_SHA256`).

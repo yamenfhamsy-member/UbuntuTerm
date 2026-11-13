@@ -17,6 +17,7 @@ report (`final-output/reports/`) and in the Telegram status message.
 | Signature | `apksigner verify --print-certs` | signature is valid |
 | Bootstrap isolation | `readelf`/`strings` sweep | no `/data/data/com.termux` reference in the bootstrap |
 | Ubuntu asset | `sha256sum` | the archive matches the official Ubuntu checksum |
+| Dependencies of the APK | `tools/dex-audit.py` | every class that the application uses is really inside the APK (a library that references the classes of an optional dependency would crash the application on the device) |
 
 ## Result of the last build
 
@@ -33,6 +34,7 @@ Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/433
 | `native-code: 'arm64-v8a'` | Pass |
 | APK signature (v2 scheme) | Pass (test key) |
 | Bundled Ubuntu rootfs (`assets/ubuntu/ubuntu-base-26.04.1-base-arm64.tar.xz`) | Present |
+| XZ support of commons-compress (`org.tukaani:xz`, `commons-io`) | Pass (checked by `tools/dex-audit.py`) |
 | No Termux bootstrap inside the APK | Pass (import from the device storage) |
 | Telegram delivery (`sendDocument` and `sendMessage`) | Pass |
 

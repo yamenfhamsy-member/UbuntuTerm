@@ -123,7 +123,8 @@ launcher → TermuxActivity → TermuxService → bootstrap missing? → UbuntuB
              → the user selects bootstrap-aarch64.zip → it is installed into the prefix directory
          → Ubuntu guest missing? → UbuntuInstallerActivity
              → copy the bundled archive from the APK assets
-             → verify SHA-256 (asset) → decompress with xz → verify SHA-256 (tar)
+             → verify SHA-256 (asset) → decompress with xz while it is extracted
+             → verify SHA-256 (tar)
              → extract into a staging directory → prepare the guest
              → atomic swap → write the stamp file
          → back to TermuxActivity → new session → PRoot → Ubuntu login shell

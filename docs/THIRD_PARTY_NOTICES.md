@@ -87,6 +87,23 @@ SOFTWARE.
 * The individual package licences are installed inside the guest under
   `/usr/share/doc/<package>/copyright`.
 
+## Apache Commons (commons-compress, commons-io)
+
+* Copyright: The Apache Software Foundation
+* Licence: Apache-2.0
+* Used for: the decompression of the bundled Ubuntu rootfs archive (commons-compress and its
+  XZ support, commons-io for the bounded input stream of the XZ decoder)
+* <https://commons.apache.org/proper/commons-compress/> and
+  <https://commons.apache.org/proper/commons-io/>
+
+## XZ for Java (org.tukaani:xz)
+
+* Copyright: The XZ for Java authors
+* Licence: public domain (0BSD)
+* Used for: the XZ decoder of commons-compress that decompresses the bundled Ubuntu rootfs
+  archive
+* <https://github.com/tukaani-project/xz-java>
+
 ## Android Open Source Project
 
 * Copyright: The Android Open Source Project

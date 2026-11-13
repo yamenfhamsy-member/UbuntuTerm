@@ -144,7 +144,9 @@ jobs:
           tar -cf /tmp/ubuntu-base.tar -C /tmp/ubuntu-rootfs .
 
           echo "Compressing the rootfs for bundling..."
-          xz -9 -T1 -c /tmp/ubuntu-base.tar > "app/src/main/assets/ubuntu/$UBUNTU_ARCHIVE.xz"
+          # The preset 6 is used on purpose: the decoder of the phone needs a 16 MB dictionary
+          # with it, the preset 9 would need 64 MB of memory for the same archive.
+          xz -6 -T1 -c /tmp/ubuntu-base.tar > "app/src/main/assets/ubuntu/$UBUNTU_ARCHIVE.xz"
 
           # The archive is stored with the ".tar.xz" name inside the APK.
           mv "app/src/main/assets/ubuntu/$UBUNTU_ARCHIVE.xz" \
@@ -319,6 +321,20 @@ jobs:
             echo "apk_size=$(stat -c%s "$OUT/apk/UbuntuTerm-arm64-v8a.apk")"
             echo "signed=${{ steps.signing.outputs.signed }}"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Check that the classes of the dependencies are inside the APK
+        run: |
+          set -euo pipefail
+          APK=""
+          for candidate in app/build/outputs/apk/release/UbuntuTerm-arm64-v8a.apk \
+                           app/build/outputs/apk/release/*.apk; do
+            if [ -f "$candidate" ]; then APK="$candidate"; break; fi
+          done
+          if [ -z "$APK" ]; then
+            echo "[FAIL] No APK was produced"
+            exit 1
+          fi
+          python3 tools/dex-audit.py "$APK"
 
       - name: Upload the UbuntuTerm APK and reports
         if: always()
