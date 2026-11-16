@@ -169,6 +169,10 @@ android {
     testOptions {
         unitTests {
             includeAndroidResources = true
+            // The unit tests of the guest helpers run on a plain JVM, the calls of the Android
+            // framework that they use (for example the logging) return their default value
+            // instead of throwing an exception.
+            returnDefaultValues = true
         }
     }
 

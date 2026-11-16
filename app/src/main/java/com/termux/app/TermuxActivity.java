@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.ContextMenu;
@@ -39,7 +40,9 @@ import com.termux.shared.activities.ReportActivity;
 import com.termux.shared.activity.ActivityUtils;
 import com.termux.shared.activity.media.AppCompatActivityUtils;
 import com.termux.shared.data.IntentUtils;
+import com.termux.app.ubuntu.UbuntuStorage;
 import com.termux.shared.android.PermissionUtils;
+import com.termux.shared.interact.MessageDialogUtils;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_ACTIVITY;
@@ -175,6 +178,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      */
     private boolean mIsInvalidState;
 
+    /**
+     * Whether the application had the access to the shared storage of the device when the
+     * activity was resumed the last time.
+     */
+    private boolean mHasStorageAccess;
+
     private int mNavBarHeight;
 
     private float mTerminalToolbarDefaultHeight;
@@ -192,6 +201,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private static final int CONTEXT_MENU_HELP_ID = 7;
     private static final int CONTEXT_MENU_SETTINGS_ID = 8;
     private static final int CONTEXT_MENU_REPORT_ID = 9;
+    private static final int CONTEXT_MENU_STORAGE_ID = 12;
+    private static final int CONTEXT_MENU_UBUNTU_ID = 13;
 
     /** Extra used to start the host (Termux) shell instead of the Ubuntu guest. */
     public static final String EXTRA_UBUNTU_HOST_MODE = "com.termux.app.EXTRA_UBUNTU_HOST_MODE";
@@ -326,7 +337,30 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // notification with the crash details if it did
         TermuxCrashUtils.notifyAppCrashFromCrashLogFile(this, LOG_TAG);
 
+        checkStorageAccessAfterResume();
+
         mIsOnResumeAfterOnCreate = false;
+    }
+
+    /**
+     * The user can grant the access to the shared storage in the settings of Android, while the
+     * application is in the background. The links of the storage are created then, but the running
+     * session keeps the old bind, so a new session is needed.
+     */
+    private void checkStorageAccessAfterResume() {
+        boolean granted = UbuntuStorage.hasStoragePermission(this);
+        if (granted == mHasStorageAccess) {
+            if (granted)
+                setupStorageSymlinks();
+            return;
+        }
+        mHasStorageAccess = granted;
+        if (!granted)
+            return;
+
+        setupStorageSymlinks();
+        MessageDialogUtils.showMessage(this, getString(R.string.storage_access_title),
+            getString(R.string.storage_access_restart_session), null);
     }
 
     @Override
@@ -676,6 +710,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         menu.add(Menu.NONE, CONTEXT_MENU_HELP_ID, Menu.NONE, R.string.action_open_help);
         menu.add(Menu.NONE, CONTEXT_MENU_SETTINGS_ID, Menu.NONE, R.string.action_open_settings);
         menu.add(Menu.NONE, CONTEXT_MENU_REPORT_ID, Menu.NONE, R.string.action_report_issue);
+        menu.add(Menu.NONE, CONTEXT_MENU_STORAGE_ID, Menu.NONE, R.string.action_storage_access);
+        menu.add(Menu.NONE, CONTEXT_MENU_UBUNTU_ID, Menu.NONE, R.string.action_ubuntu_manager);
     }
 
     /** Hook system menu to show context menu instead. */
@@ -725,6 +761,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 return true;
             case CONTEXT_MENU_REPORT_ID:
                 mTermuxTerminalViewClient.reportIssueFromTranscript();
+                return true;
+            case CONTEXT_MENU_STORAGE_ID:
+                onStorageAccessRequested();
+                return true;
+            case CONTEXT_MENU_UBUNTU_ID:
+                ActivityUtils.startActivity(this, new Intent(this, com.termux.app.ubuntu.UbuntuInstallerActivity.class));
                 return true;
             default:
                 return super.onContextItemSelected(item);
@@ -807,7 +849,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                         Logger.logInfoAndShowToast(TermuxActivity.this, LOG_TAG,
                             getString(com.termux.shared.R.string.msg_storage_permission_granted_on_request));
 
-                    TermuxInstaller.setupStorageSymlinks(TermuxActivity.this);
+                    setupStorageSymlinks();
                 } else {
                     if (isPermissionCallback)
                         Logger.logInfoAndShowToast(TermuxActivity.this, LOG_TAG,
@@ -815,6 +857,61 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 }
             }
         }.start();
+    }
+
+    /**
+     * Create the symlinks of the shared storage.
+     *
+     * <p>The links are created on the host side, the home directory of the application is the home
+     * directory of the guest, so they are usable inside Ubuntu as well.
+     */
+    private void setupStorageSymlinks() {
+        new Thread(() -> {
+            int links = UbuntuStorage.setupStorageSymlinks(TermuxActivity.this);
+            Logger.logInfo(LOG_TAG, "Prepared " + links + " storage links");
+        }, "UbuntuTerm-storage-links").start();
+    }
+
+    /**
+     * The user asked for access to the shared storage of the device.
+     *
+     * <p>When the access was already granted, the symlinks are only repaired. Otherwise the
+     * permissions are requested: the legacy ones first and, on Android 11 and above, the "all
+     * files access" permission, that can only be granted in the settings of Android.
+     */
+    private void onStorageAccessRequested() {
+        if (UbuntuStorage.hasStoragePermission(this)) {
+            setupStorageSymlinks();
+            MessageDialogUtils.showMessage(this, getString(R.string.storage_access_title),
+                getString(R.string.storage_access_already_granted), null);
+            return;
+        }
+
+        if (UbuntuStorage.isLegacyStoragePermissionGranted(this)) {
+            setupStorageSymlinks();
+            MessageDialogUtils.showMessage(this, getString(R.string.storage_access_title),
+                getString(R.string.storage_access_already_granted), null);
+            return;
+        }
+
+        // The legacy permissions are requested first, they are enough on Android 10 and below.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            requestStoragePermission(false);
+            return;
+        }
+
+        // On Android 11 and above the access to the shared storage is either granted with the
+        // legacy permissions or with "all files access" in the settings of Android. Both are
+        // offered, the settings of Android are the only way for the second one.
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.storage_access_title)
+            .setMessage(R.string.storage_access_choose)
+            .setNegativeButton(R.string.storage_access_legacy, (dialog, which) -> requestStoragePermission(false))
+            .setPositiveButton(R.string.storage_access_all_files, (dialog, which) -> {
+                PermissionUtils.requestManageStorageExternalPermission(TermuxActivity.this,
+                    PermissionUtils.REQUEST_GRANT_STORAGE_PERMISSION);
+            })
+            .show();
     }
 
     @Override

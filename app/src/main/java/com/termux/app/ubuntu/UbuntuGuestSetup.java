@@ -36,6 +36,11 @@ public class UbuntuGuestSetup {
         UbuntuRootFsManager.mkdirs(localBin);
         UbuntuRootFsManager.mkdirs(localLib);
 
+        // The mount points of the shared storage of the device. They are created inside the
+        // guest, so that PRoot can bind the storage of the device onto them.
+        UbuntuRootFsManager.mkdirs(new File(stagingDir, "storage/emulated/0"));
+        UbuntuRootFsManager.mkdirs(new File(stagingDir, "sdcard"));
+
         // Termux:API client implementation. The dispatcher selects the Perl implementation
         // (Perl is part of the Ubuntu base image) and falls back to Python.
         copyAsset(context, "ubuntu/termux-api", new File(localLib, "termux-api"), 0755);
@@ -79,8 +84,9 @@ public class UbuntuGuestSetup {
     /**
      * Refresh the guest network configuration before a session is started.
      *
-     * The host resolver configuration may change (Wi-Fi, mobile data, VPN), so it is refreshed
-     * for every session.
+     * <p>The host resolver configuration may change (Wi-Fi, mobile data, VPN), so it is refreshed
+     * for every session. The links of the shared storage are repaired as well, the user can grant
+     * the access to the storage in the settings of Android while the application is running.
      */
     public static void prepareSession(Context context) {
         try {
@@ -89,6 +95,8 @@ public class UbuntuGuestSetup {
         } catch (IOException e) {
             android.util.Log.w(LOG_TAG, "Failed to refresh the guest configuration", e);
         }
+        if (UbuntuStorage.hasStoragePermission(context))
+            UbuntuStorage.setupStorageSymlinks(context);
     }
 
     /**

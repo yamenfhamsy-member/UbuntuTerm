@@ -74,11 +74,9 @@ public class UbuntuSessionLauncher {
         // of the rootfs and therefore survives rootfs and APK updates.
         args.add("--bind=" + TermuxConstants.TERMUX_HOME_DIR_PATH + ":" + UbuntuConstants.GUEST_HOME);
 
-        // Storage: the application specific external files directory. Android's shared storage
-        // is not exposed, because that would require the MANAGE_EXTERNAL_STORAGE permission.
-        File externalFiles = context.getExternalFilesDir(null);
-        if (externalFiles != null && externalFiles.isDirectory())
-            args.add("--bind=" + externalFiles.getAbsolutePath() + ":/sdcard");
+        // Storage: the shared storage of the device when the user granted the access to it,
+        // otherwise the application specific external files directory.
+        args.addAll(UbuntuStorage.buildGuestBinds(context));
 
         // Clean environment for the guest: no host variable is inherited.
         args.add("/usr/bin/env");
