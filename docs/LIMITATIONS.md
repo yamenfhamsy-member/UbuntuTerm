@@ -24,7 +24,8 @@ unavailable or restricted.
 
 | Restriction | Reason |
 |---|---|
-| Shared storage is limited to the application specific external files directory | `MANAGE_EXTERNAL_STORAGE` is deliberately **not** requested. `/sdcard` inside the guest points to `/storage/emulated/0/Android/data/com.ubutumerm.app/files` |
+| Shared storage needs an explicit user grant | The guest can mount the shared storage only after the user grants the storage permission: `READ`/`WRITE_EXTERNAL_STORAGE` on Android 10 and below, or `MANAGE_EXTERNAL_STORAGE` ("All files access") on Android 11 and above. Without the permission `/sdcard` inside the guest falls back to `/storage/emulated/0/Android/data/com.ubutumerm.app/files` |
+| The storage permission is requested only when the user asks for it | `MANAGE_EXTERNAL_STORAGE` is a sensitive permission, so it is never requested silently: the "Storage access" entry of the context menu explains the options and opens the system settings |
 | The host prefix is not visible inside the guest | Mixing Bionic binaries and libraries into a glibc system breaks the dynamic linker |
 | The host `apt` repositories are disabled in the host prefix | The official Termux packages are compiled for `/data/data/com.termux/files/usr` and would be unusable. The host prefix only provides the local repository that was built together with the bootstrap |
 | The Termux:API methods that need dangerous permissions are not exposed | Camera, SMS, contacts, call log, location, microphone, USB, NFC and fingerprint are not part of the embedded implementation |
@@ -42,3 +43,9 @@ unavailable or restricted.
 * Updating the application never deletes the rootfs, the home directory or the installed
   packages. A new Ubuntu release is installed by the application itself (or by clearing the
   rootfs directory), not by an APK update.
+* The storage links below `~/storage` are repaired at every session start. A link that points to
+  a wrong target is replaced, but a real directory or file is never deleted: the link is then
+  skipped and the problem is reported in the log.
+* The bootstrap archive is verified against the published SHA-256 checksum. An archive with a
+  different checksum can still be installed, but only after an explicit confirmation that shows
+  the calculated checksum.

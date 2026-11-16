@@ -8,7 +8,7 @@ report (`final-output/reports/`) and in the Telegram status message.
 | Test | Tool | Expected result |
 |---|---|---|
 | Gradle build | `./gradlew assembleRelease` | APK is produced |
-| Unit tests | `./gradlew testReleaseUnitTest` | all tests pass (the result of every test is printed into the build log) (includes the tar extractor security tests: a symlink with an absolute target is created, a relative target that escapes the root is refused, no member is written outside of the extraction root and the permissions of the archive are applied exactly) |
+| Unit tests | `./gradlew testReleaseUnitTest` | all tests pass (the result of every test is printed into the build log) (includes the tar extractor security tests: a symlink with an absolute target is created, a relative target that escapes the root is refused, no member is written outside of the extraction root and the permissions of the archive are applied exactly; the storage link tests: a wrong link is repaired, a real file is never deleted and the shared storage is bound; the bootstrap checksum tests: the published checksum is accepted and a modified checksum is refused; and the bidirectional text tests of the terminal view) |
 | Package id | `aapt2 dump badging` | `name='com.ubutumerm.app'` |
 | Application label | `aapt2 dump badging` | `application-label:'UbuntuTerm'` |
 | Version | `aapt2 dump badging` | `versionCode`/`versionName` are printed into the report |
@@ -63,6 +63,18 @@ workflow. The list is part of the manual test plan:
    packages are still there,
 8. `termux-toast` shows a toast, `termux-battery-status` returns JSON,
    `termux-clipboard-set`/`termux-clipboard-get` round trip the clipboard.
+9. open the context menu → "Storage access" → grant the storage permission (on Android 11 and
+   above use "All files access", on Android 10 and below use the runtime dialog),
+10. restart the session and check inside the guest:
+    `ls ~/storage/shared` shows the content of the shared storage,
+    `touch ~/storage/shared/ubutumerm-test && ls ~/storage/shared` finds the file on the device,
+    `ls ~/storage/downloads ~/storage/dcim` lists the directories of the device,
+11. create a real directory at `~/storage/shared-test` and run the repair from the Ubuntu
+    manager → the directory still exists (the repair never deletes user data),
+12. open the context menu → "Ubuntu manager" → "Repair installation" → the session still works
+    and the installed packages are still there,
+13. type an Arabic sentence in the terminal (`echo "مرحبا بالعالم"`) → the text is rendered from
+    right to left and is not mirrored or cut off.
 
 ## Layer 3 – Ubuntu guest tests (executed inside the guest)
 
