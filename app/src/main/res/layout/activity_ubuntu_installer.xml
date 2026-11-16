@@ -58,4 +58,18 @@
         android:layout_marginTop="8dp"
         android:text="@string/ubuntu_installer_host_mode" />
 
+    <Button
+        android:id="@+id/ubuntu_repair"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/ubuntu_installer_repair" />
+
+    <Button
+        android:id="@+id/ubuntu_reset"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/ubuntu_installer_reset" />
+
 </LinearLayout>

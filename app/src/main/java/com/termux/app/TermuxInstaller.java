@@ -8,7 +8,6 @@ import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.provider.OpenableColumns;
 import android.system.Os;
@@ -16,6 +15,7 @@ import android.util.Pair;
 import android.view.WindowManager;
 
 import com.termux.R;
+import com.termux.app.ubuntu.UbuntuBootstrapVerifier;
 import com.termux.shared.file.FileUtils;
 import com.termux.shared.termux.crash.TermuxCrashUtils;
 import com.termux.shared.termux.file.TermuxFileUtils;
@@ -30,8 +30,6 @@ import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -39,6 +37,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -126,15 +126,29 @@ public final class TermuxInstaller {
             Logger.logInfo(LOG_TAG, "The termux prefix directory \"" + TERMUX_PREFIX_DIR_PATH + "\" does not exist but another file exists at its destination.");
         }
 
-        installBootstrapBytes(activity, loadZipBytes(), whenDone);
+        // The bootstrap that is embedded in the application is written into the cache directory
+        // first, so that both ways of installing it use the same code path.
+        try {
+            final File embedded = File.createTempFile("bootstrap-embedded", ".zip", activity.getCacheDir());
+            try (OutputStream out = new FileOutputStream(embedded)) {
+                out.write(loadZipBytes());
+            }
+            installBootstrapArchive(activity, embedded, whenDone);
+        } catch (IOException e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to prepare the embedded bootstrap", e);
+            showBootstrapErrorDialog(activity, whenDone,
+                Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)));
+        }
     }
 
     /**
      * Installs a bootstrap from a zip file that the user selected, for example from the
      * storage of the device.
      *
-     * <p>The file is read in a background thread, the installation itself is started on the
-     * main thread because it shows a progress dialog.
+     * <p>The file is copied into the cache directory of the application instead of being kept
+     * in memory, the bootstrap is more than 30 MB large. The checksum of the archive is
+     * calculated while it is copied. An archive that was not published for this project is
+     * only installed after the user confirmed it.
      *
      * @param activity the activity
      * @param uri      the uri of the bootstrap zip file
@@ -144,10 +158,20 @@ public final class TermuxInstaller {
     public static void installBootstrapFromUri(final Activity activity, final Uri uri, final Runnable whenDone,
                                                 final Consumer<String> onError) {
         new Thread(() -> {
+            File temporaryFile = null;
             try {
-                final byte[] bytes = readUriBytes(activity, uri);
-                activity.runOnUiThread(() -> installBootstrapBytes(activity, bytes, whenDone));
+                temporaryFile = File.createTempFile("bootstrap", ".zip", activity.getCacheDir());
+                final String checksum = copyUriToFile(activity, uri, temporaryFile);
+                final File archive = temporaryFile;
+                activity.runOnUiThread(() -> {
+                    if (UbuntuBootstrapVerifier.isTrusted(checksum)) {
+                        installBootstrapArchive(activity, archive, whenDone);
+                        return;
+                    }
+                    confirmUntrustedBootstrap(activity, archive, checksum, whenDone, onError);
+                });
             } catch (Exception | OutOfMemoryError e) {
+                if (temporaryFile != null && !temporaryFile.delete()) temporaryFile.deleteOnExit();
                 Logger.logStackTraceWithMessage(LOG_TAG, "Failed to read the bootstrap archive", e);
                 final String message = e.getMessage() != null ? e.getMessage() : e.toString();
                 activity.runOnUiThread(() -> {
@@ -160,28 +184,25 @@ public final class TermuxInstaller {
     }
 
     /**
-     * Read the content of the selected file.
+     * Ask the user whether an archive with an unknown checksum should be installed.
      *
-     * <p>The size of the file is queried first, so that the array can be allocated with the
-     * exact size and the content of the file does not have to be copied a second time.
+     * <p>The bootstrap contains the host runtime of the application, an archive that was
+     * modified would be executed with the rights of the application. The checksum of the
+     * archive is shown, so that it can be compared with the published one.
      */
-    private static byte[] readUriBytes(Activity activity, Uri uri) throws IOException {
-        ContentResolver resolver = activity.getContentResolver();
-        long size = queryContentSize(resolver, uri);
-        if (size <= 0) {
-            // The provider does not report the size of the file: it is copied into a temporary
-            // file first, so that the array can be allocated with the exact size as well.
-            File temporaryFile = File.createTempFile("bootstrap", ".zip", activity.getCacheDir());
-            try {
-                copyUriToFile(resolver, uri, temporaryFile);
-                return readFileBytes(temporaryFile);
-            } finally {
-                if (!temporaryFile.delete()) temporaryFile.deleteOnExit();
-            }
-        }
-        if (size > Integer.MAX_VALUE)
-            throw new IOException("The selected file is too large to be installed");
-        return readUriBytes(resolver, uri, (int) size);
+    private static void confirmUntrustedBootstrap(final Activity activity, final File archive, final String checksum,
+                                                  final Runnable whenDone, final Consumer<String> onError) {
+        Logger.logWarn(LOG_TAG, "The bootstrap archive has an unknown checksum: " + checksum);
+        new AlertDialog.Builder(activity)
+            .setTitle(R.string.bootstrap_untrusted_title)
+            .setMessage(activity.getString(R.string.bootstrap_untrusted_message, checksum))
+            .setNegativeButton(R.string.bootstrap_error_abort, (dialog, which) -> {
+                if (!archive.delete()) archive.deleteOnExit();
+                if (onError != null) onError.accept(activity.getString(R.string.bootstrap_untrusted_aborted));
+            })
+            .setPositiveButton(R.string.bootstrap_untrusted_install, (dialog, which) ->
+                installBootstrapArchive(activity, archive, whenDone))
+            .show();
     }
 
     /** The size of the selected file, {@code -1} when it is unknown. */
@@ -209,72 +230,45 @@ public final class TermuxInstaller {
         return -1;
     }
 
-    /** Read exactly {@code size} bytes of the selected file. */
-    private static byte[] readUriBytes(ContentResolver resolver, Uri uri, int size) throws IOException {
-        byte[] bytes = new byte[size];
-        try (InputStream in = resolver.openInputStream(uri)) {
-            if (in == null) throw new IOException("The selected file cannot be read");
-            int offset = 0;
-            while (offset < size) {
-                int read = in.read(bytes, offset, size - offset);
-                if (read < 0) break;
-                offset += read;
-            }
-            if (offset < size)
-                throw new IOException("The selected file is shorter than announced (" + offset + " of " + size + " bytes)");
-            if (in.read() >= 0) {
-                // The provider announced a size that is too small, the rest of the file is read
-                // into a larger array.
-                ByteArrayOutputStream out = new ByteArrayOutputStream(size + 64 * 1024);
-                out.write(bytes, 0, offset);
-                byte[] buffer = new byte[64 * 1024];
-                int read;
-                while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
-                return out.toByteArray();
-            }
+    /**
+     * Copy the selected file into a temporary file and calculate its checksum.
+     *
+     * <p>The archive is streamed, so that it does not have to be held in memory.
+     *
+     * @return the SHA-256 of the copied file
+     */
+    private static String copyUriToFile(Activity activity, Uri uri, File target) throws IOException {
+        ContentResolver resolver = activity.getContentResolver();
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException("SHA-256 is not available", e);
         }
-        return bytes;
-    }
-
-    /** Copy the selected file into a temporary file. */
-    private static void copyUriToFile(ContentResolver resolver, Uri uri, File target) throws IOException {
         try (InputStream in = resolver.openInputStream(uri);
              OutputStream out = new FileOutputStream(target)) {
             if (in == null) throw new IOException("The selected file cannot be read");
             byte[] buffer = new byte[64 * 1024];
             int read;
-            while ((read = in.read(buffer)) > 0) out.write(buffer, 0, read);
+            while ((read = in.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+                digest.update(buffer, 0, read);
+            }
             out.flush();
         }
-    }
-
-    /** Read the content of a file into an array that is allocated with the exact size. */
-    private static byte[] readFileBytes(File file) throws IOException {
-        long size = file.length();
-        if (size > Integer.MAX_VALUE)
-            throw new IOException("The selected file is too large to be installed");
-        byte[] bytes = new byte[(int) size];
-        try (InputStream in = new BufferedInputStream(new FileInputStream(file), 64 * 1024)) {
-            int offset = 0;
-            while (offset < bytes.length) {
-                int read = in.read(bytes, offset, bytes.length - offset);
-                if (read < 0) break;
-                offset += read;
-            }
-            if (offset < bytes.length)
-                throw new IOException("The selected file is truncated (" + offset + " of " + bytes.length + " bytes)");
-        }
-        return bytes;
+        return UbuntuBootstrapVerifier.toHex(digest.digest());
     }
 
     /**
      * Extracts a bootstrap zip into the termux prefix directory.
      *
+     * <p>The archive is read from a file, so that it does not have to be held in memory.
+     *
      * @param activity  the activity
-     * @param zipBytes  the content of the bootstrap zip
+     * @param zipFile   the bootstrap zip file
      * @param whenDone  run after the installation finished
      */
-    private static void installBootstrapBytes(final Activity activity, final byte[] zipBytes, final Runnable whenDone) {
+    private static void installBootstrapArchive(final Activity activity, final File zipFile, final Runnable whenDone) {
         final ProgressDialog progress = showProgressDialog(activity);
         new Thread() {
             @Override
@@ -291,12 +285,9 @@ public final class TermuxInstaller {
                         return;
                     }
 
-                    // Delete prefix directory or any file at its destination
-                    error = FileUtils.deleteFile("termux prefix directory", TERMUX_PREFIX_DIR_PATH, true);
-                    if (error != null) {
-                        showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error));
-                        return;
-                    }
+                    // The live prefix directory is not deleted here: it is only replaced when the
+                    // extraction into the staging directory succeeded. A failed installation
+                    // therefore leaves the working installation untouched.
 
                     // Create prefix staging directory if it does not already exist and set required permissions
                     error = TermuxFileUtils.isTermuxPrefixStagingDirectoryAccessible(true, true);
@@ -317,7 +308,7 @@ public final class TermuxInstaller {
                     final byte[] buffer = new byte[8096];
                     final List<Pair<String, String>> symlinks = new ArrayList<>(50);
 
-                    try (ZipInputStream zipInput = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+                    try (ZipInputStream zipInput = new ZipInputStream(new BufferedInputStream(new FileInputStream(zipFile), 64 * 1024))) {
                         ZipEntry zipEntry;
                         while ((zipEntry = zipInput.getNextEntry()) != null) {
                             if (zipEntry.getName().equals("SYMLINKS.txt")) {
@@ -376,6 +367,13 @@ public final class TermuxInstaller {
 
                     Logger.logInfo(LOG_TAG, "Moving termux prefix staging to prefix directory.");
 
+                    // The old prefix directory is only removed now, the new one is complete.
+                    error = FileUtils.deleteFile("termux prefix directory", TERMUX_PREFIX_DIR_PATH, true);
+                    if (error != null) {
+                        showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error));
+                        return;
+                    }
+
                     if (!TERMUX_STAGING_PREFIX_DIR.renameTo(TERMUX_PREFIX_DIR)) {
                         throw new RuntimeException("Moving termux prefix staging to prefix directory failed");
                     }
@@ -391,6 +389,7 @@ public final class TermuxInstaller {
                     showBootstrapErrorDialog(activity, whenDone, Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)));
 
                 } finally {
+                    if (!zipFile.delete()) zipFile.deleteOnExit();
                     activity.runOnUiThread(() -> {
                         try {
                             if (progress != null) progress.dismiss();
@@ -463,103 +462,6 @@ public final class TermuxInstaller {
             title, null, "## " + title + "\n\n" + message + "\n\n" +
                 TermuxUtils.getTermuxDebugMarkdownString(activity),
             true, false, TermuxUtils.AppInfoMode.TERMUX_AND_PLUGIN_PACKAGES, true);
-    }
-
-    static void setupStorageSymlinks(final Context context) {
-        final String LOG_TAG = "termux-storage";
-        final String title = TermuxConstants.TERMUX_APP_NAME + " Setup Storage Error";
-
-        Logger.logInfo(LOG_TAG, "Setting up storage symlinks.");
-
-        new Thread() {
-            public void run() {
-                try {
-                    Error error;
-                    File storageDir = TermuxConstants.TERMUX_STORAGE_HOME_DIR;
-
-                    error = FileUtils.clearDirectory("~/storage", storageDir.getAbsolutePath());
-                    if (error != null) {
-                        Logger.logErrorAndShowToast(context, LOG_TAG, error.getMessage());
-                        Logger.logErrorExtended(LOG_TAG, "Setup Storage Error\n" + error.toString());
-                        TermuxCrashUtils.sendCrashReportNotification(context, LOG_TAG, title, null,
-                            "## " + title + "\n\n" + Error.getErrorMarkdownString(error),
-                            true, false, TermuxUtils.AppInfoMode.TERMUX_PACKAGE, true);
-                        return;
-                    }
-
-                    Logger.logInfo(LOG_TAG, "Setting up storage symlinks at ~/storage/shared, ~/storage/downloads, ~/storage/dcim, ~/storage/pictures, ~/storage/music and ~/storage/movies for directories in \"" + Environment.getExternalStorageDirectory().getAbsolutePath() + "\".");
-
-                    // Get primary storage root "/storage/emulated/0" symlink
-                    File sharedDir = Environment.getExternalStorageDirectory();
-                    Os.symlink(sharedDir.getAbsolutePath(), new File(storageDir, "shared").getAbsolutePath());
-
-                    File documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-                    Os.symlink(documentsDir.getAbsolutePath(), new File(storageDir, "documents").getAbsolutePath());
-
-                    File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                    Os.symlink(downloadsDir.getAbsolutePath(), new File(storageDir, "downloads").getAbsolutePath());
-
-                    File dcimDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
-                    Os.symlink(dcimDir.getAbsolutePath(), new File(storageDir, "dcim").getAbsolutePath());
-
-                    File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-                    Os.symlink(picturesDir.getAbsolutePath(), new File(storageDir, "pictures").getAbsolutePath());
-
-                    File musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
-                    Os.symlink(musicDir.getAbsolutePath(), new File(storageDir, "music").getAbsolutePath());
-
-                    File moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
-                    Os.symlink(moviesDir.getAbsolutePath(), new File(storageDir, "movies").getAbsolutePath());
-
-                    File podcastsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS);
-                    Os.symlink(podcastsDir.getAbsolutePath(), new File(storageDir, "podcasts").getAbsolutePath());
-
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                        File audiobooksDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_AUDIOBOOKS);
-                        Os.symlink(audiobooksDir.getAbsolutePath(), new File(storageDir, "audiobooks").getAbsolutePath());
-                    }
-
-                    // Dir 0 should ideally be for primary storage
-                    // https://cs.android.com/android/platform/superproject/+/android-12.0.0_r32:frameworks/base/core/java/android/app/ContextImpl.java;l=818
-                    // https://cs.android.com/android/platform/superproject/+/android-12.0.0_r32:frameworks/base/core/java/android/os/Environment.java;l=219
-                    // https://cs.android.com/android/platform/superproject/+/android-12.0.0_r32:frameworks/base/core/java/android/os/Environment.java;l=181
-                    // https://cs.android.com/android/platform/superproject/+/android-12.0.0_r32:frameworks/base/services/core/java/com/android/server/StorageManagerService.java;l=3796
-                    // https://cs.android.com/android/platform/superproject/+/android-7.0.0_r36:frameworks/base/services/core/java/com/android/server/MountService.java;l=3053
-
-                    // Create "Android/data/com.termux" symlinks
-                    File[] dirs = context.getExternalFilesDirs(null);
-                    if (dirs != null && dirs.length > 0) {
-                        for (int i = 0; i < dirs.length; i++) {
-                            File dir = dirs[i];
-                            if (dir == null) continue;
-                            String symlinkName = "external-" + i;
-                            Logger.logInfo(LOG_TAG, "Setting up storage symlinks at ~/storage/" + symlinkName + " for \"" + dir.getAbsolutePath() + "\".");
-                            Os.symlink(dir.getAbsolutePath(), new File(storageDir, symlinkName).getAbsolutePath());
-                        }
-                    }
-
-                    // Create "Android/media/com.termux" symlinks
-                    dirs = context.getExternalMediaDirs();
-                    if (dirs != null && dirs.length > 0) {
-                        for (int i = 0; i < dirs.length; i++) {
-                            File dir = dirs[i];
-                            if (dir == null) continue;
-                            String symlinkName = "media-" + i;
-                            Logger.logInfo(LOG_TAG, "Setting up storage symlinks at ~/storage/" + symlinkName + " for \"" + dir.getAbsolutePath() + "\".");
-                            Os.symlink(dir.getAbsolutePath(), new File(storageDir, symlinkName).getAbsolutePath());
-                        }
-                    }
-
-                    Logger.logInfo(LOG_TAG, "Storage symlinks created successfully.");
-                } catch (Exception e) {
-                    Logger.logErrorAndShowToast(context, LOG_TAG, e.getMessage());
-                    Logger.logStackTraceWithMessage(LOG_TAG, "Setup Storage Error: Error setting up link", e);
-                    TermuxCrashUtils.sendCrashReportNotification(context, LOG_TAG, title, null,
-                        "## " + title + "\n\n" + Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)),
-                        true, false, TermuxUtils.AppInfoMode.TERMUX_PACKAGE, true);
-                }
-            }
-        }.start();
     }
 
     private static Error ensureDirectoryExists(File directory) {

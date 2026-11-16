@@ -251,9 +251,34 @@
     <string name="ubuntu_installer_details">الإصدار: %1$s\nالاسم الرمزي: %2$s\nالمعمارية: %3$s\nالمصدر: %4$s</string>
     <string name="ubuntu_installer_source_bundled">مرفق داخل التطبيق (بدون إنترنت)</string>
     <string name="ubuntu_installer_source_download">تنزيل من خادم Ubuntu الرسمي</string>
+    <string name="ubuntu_installer_repair">إعادة تثبيت Ubuntu (إصلاح)</string>
+    <string name="ubuntu_installer_reset">حذف Ubuntu (مع الاحتفاظ بملفاتك)</string>
+    <string name="ubuntu_installer_repair_confirm">سيتم إعادة تثبيت Ubuntu. ملفاتك في مجلد المنزل تبقى كما هي. هل تريد المتابعة؟</string>
+    <string name="ubuntu_installer_reset_confirm">سيتم حذف نظام Ubuntu. ملفاتك في مجلد المنزل تبقى كما هي. هل تريد المتابعة؟</string>
+    <string name="ubuntu_installer_reset_done">تم حذف Ubuntu. اضغط إعادة المحاولة لتثبيته من جديد.</string>
+    <string name="ubuntu_installer_confirm_yes">نعم</string>
+    <string name="ubuntu_installer_confirm_no">إلغاء</string>
 
     <!-- UbuntuTerm: embedded Termux:API -->
     <string name="share_file_chooser_title">Share with</string>
+
+    <!-- UbuntuTerm: bootstrap verification -->
+    <string name="bootstrap_untrusted_title">بوتستراب غير معروف</string>
+    <string name="bootstrap_untrusted_message">البوتستراب المختار ليس هو الملف المنشور لمشروع UbuntuTerm، وبصمة SHA-256 الخاصة به هي:\n\n%1$s\n\nإذا كنت واثقاً من مصدر الملف، يمكنك تثبيته على أي حال. وإلا فاختر الملف الرسمي من قناة تليغرام.</string>
+    <string name="bootstrap_untrusted_install">تثبيت على أي حال</string>
+    <string name="bootstrap_untrusted_aborted">تم إلغاء التثبيت: البوتستراب غير موثوق.</string>
+
+    <!-- UbuntuTerm: guest management -->
+    <string name="action_ubuntu_manager">إدارة Ubuntu (إصلاح أو حذف)</string>
+
+    <!-- UbuntuTerm: shared storage access -->
+    <string name="action_storage_access">الوصول إلى ملفات الجهاز</string>
+    <string name="storage_access_title">الوصول إلى ملفات الجهاز</string>
+    <string name="storage_access_already_granted">تم منح التطبيق صلاحية الوصول إلى ملفات الجهاز. المجلد ~/storage داخل Ubuntu يعرض ملفات الجهاز الآن. أعد تشغيل الجلسة إذا لم تظهر.</string>
+    <string name="storage_access_choose">اختر طريقة منح التطبيق صلاحية الوصول إلى ملفات الجهاز (مجلد /sdcard داخل Ubuntu).</string>
+    <string name="storage_access_legacy">السماح بالوصول</string>
+    <string name="storage_access_all_files">كل الملفات</string>
+    <string name="storage_access_restart_session">تم منح التطبيق صلاحية الوصول إلى ملفات الجهاز. افتح جلسة جديدة (أو أعد تشغيل التطبيق) لتطبيق الصلاحية داخل Ubuntu.</string>
 
     <!-- UbuntuTerm: bootstrap import -->
     <string name="bootstrap_import_title">استيراد البوتستراب</string>
