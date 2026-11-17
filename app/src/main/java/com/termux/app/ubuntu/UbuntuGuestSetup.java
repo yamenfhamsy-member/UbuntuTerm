@@ -30,6 +30,7 @@ public class UbuntuGuestSetup {
      */
     public static void prepareStagedGuest(Context context, File stagingDir) throws IOException {
         writeNetworkConfig(context, stagingDir);
+        writeAptConfig(stagingDir);
 
         File localBin = new File(stagingDir, "usr/local/bin");
         File localLib = new File(stagingDir, "usr/local/lib/ubutumerm");
@@ -57,7 +58,7 @@ public class UbuntuGuestSetup {
         }
 
         // Release information inside the guest.
-        writeText(new File(stagingDir, "etc/ubunturerm-release"),
+        writeText(new File(stagingDir, "etc/ubuntuterm-release"),
             "UbuntuTerm guest\n" +
             "ubuntu_version=" + UbuntuConstants.UBUNTU_VERSION + "\n" +
             "ubuntu_codename=" + UbuntuConstants.UBUNTU_CODENAME + "\n" +
@@ -90,7 +91,9 @@ public class UbuntuGuestSetup {
      */
     public static void prepareSession(Context context) {
         try {
-            writeNetworkConfig(context, new File(UbuntuConstants.ROOTFS_DIR));
+            File rootfsDir = new File(UbuntuConstants.ROOTFS_DIR);
+            writeNetworkConfig(context, rootfsDir);
+            writeAptConfig(rootfsDir);
             UbuntuRootFsManager.mkdirs(new File(TermuxConstants.TERMUX_HOME_DIR_PATH));
         } catch (IOException e) {
             android.util.Log.w(LOG_TAG, "Failed to refresh the guest configuration", e);
@@ -118,6 +121,50 @@ public class UbuntuGuestSetup {
             "127.0.0.1\tlocalhost\n" +
             "127.0.1.1\tubuntu-term\n" +
             "::1\tlocalhost ip6-localhost ip6-loopback\n");
+    }
+
+    /**
+     * Write the package sources of the guest.
+     *
+     * <p>The Ubuntu base image of the arm64 architecture points to {@code archive.ubuntu.com}
+     * and {@code security.ubuntu.com}, which do not serve the packages of this architecture.
+     * The arm64 packages are served by {@code ports.ubuntu.com/ubuntu-ports}, so the sources
+     * are replaced for every installation and every session. A rootfs that was installed by an
+     * older version of the application is repaired as well.
+     *
+     * <p>Inside PRoot the {@code _apt} user of the package manager cannot be used: the file
+     * system of the guest is owned by the application, so the sandbox user is disabled.
+     */
+    private static void writeAptConfig(File rootfsDir) throws IOException {
+        File sourcesListD = new File(rootfsDir, "etc/apt/sources.list.d");
+        UbuntuRootFsManager.mkdirs(sourcesListD);
+
+        String codename = UbuntuConstants.UBUNTU_CODENAME;
+        String ubuntuSources =
+            "# UbuntuTerm configured ports repository for " + UbuntuConstants.UBUNTU_ARCH + "\n" +
+            "Types: deb\n" +
+            "URIs: http://ports.ubuntu.com/ubuntu-ports/\n" +
+            "Suites: " + codename + " " + codename + "-updates " + codename + "-backports\n" +
+            "Components: main universe restricted multiverse\n" +
+            "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n\n" +
+            "Types: deb\n" +
+            "URIs: http://ports.ubuntu.com/ubuntu-ports/\n" +
+            "Suites: " + codename + "-security\n" +
+            "Components: main universe restricted multiverse\n" +
+            "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n";
+        writeText(new File(sourcesListD, "ubuntu.sources"), ubuntuSources);
+
+        File aptConfD = new File(rootfsDir, "etc/apt/apt.conf.d");
+        UbuntuRootFsManager.mkdirs(aptConfD);
+
+        String prootAptConf =
+            "APT::Sandbox::User \"root\";\n" +
+            "Acquire::Languages \"none\";\n" +
+            "Dpkg::Options {\n" +
+            "   \"--force-confdef\";\n" +
+            "   \"--force-confold\";\n" +
+            "};\n";
+        writeText(new File(aptConfD, "99ubuntuterm-proot"), prootAptConf);
     }
 
     /**
