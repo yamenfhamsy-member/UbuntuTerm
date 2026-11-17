@@ -380,6 +380,10 @@ public final class TermuxInstaller {
 
                     Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully.");
 
+                    // The package source of the host prefix points to the local repository of the
+                    // bootstrap, create its index so that "apt update" of the host mode works.
+                    createLocalRepositoryIndex(TERMUX_PREFIX_DIR);
+
                     // Recreate env file since termux prefix was wiped earlier
                     TermuxShellEnvironment.writeEnvironmentToFile(activity);
 
@@ -400,6 +404,51 @@ public final class TermuxInstaller {
                 }
             }
         }.start();
+    }
+
+    /**
+     * Create the index of the local package repository of the host prefix.
+     *
+     * <p>The bootstrap configures its only package source as
+     * {@code file:/<prefix>/var/local-repo stable main}, but the directory is not part of the
+     * archive, so {@code apt update} in the host mode fails. An empty but valid repository is
+     * created when it is missing, an existing repository is never touched.
+     */
+    private static void createLocalRepositoryIndex(File prefixDir) {
+        if (prefixDir == null || !prefixDir.isDirectory()) return;
+
+        File distsDir = new File(prefixDir, "var/local-repo/dists/stable");
+        File binaryDir = new File(distsDir, "main/binary-aarch64");
+        File packagesFile = new File(binaryDir, "Packages");
+        File releaseFile = new File(distsDir, "Release");
+
+        try {
+            if (!binaryDir.isDirectory() && !binaryDir.mkdirs())
+                throw new IOException("Cannot create the directory \"" + binaryDir + "\"");
+            if (!packagesFile.exists() && !packagesFile.createNewFile())
+                throw new IOException("Cannot create the file \"" + packagesFile + "\"");
+            if (!releaseFile.exists()) {
+                String sha256 = UbuntuBootstrapVerifier.sha256(packagesFile);
+                String release =
+                    "Origin: UbuntuTerm\n" +
+                    "Label: UbuntuTerm Local\n" +
+                    "Suite: stable\n" +
+                    "Codename: stable\n" +
+                    "Architectures: aarch64\n" +
+                    "Components: main\n" +
+                    "Description: Local package repository of UbuntuTerm\n" +
+                    "SHA256:\n" +
+                    " " + sha256 + " " + packagesFile.length() + " main/binary-aarch64/Packages\n";
+                try (OutputStream out = new FileOutputStream(releaseFile)) {
+                    out.write(release.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    out.flush();
+                }
+                releaseFile.setReadable(true, false);
+            }
+            Logger.logInfo(LOG_TAG, "The local package repository index is ready at \"" + distsDir + "\".");
+        } catch (IOException e) {
+            Logger.logWarn(LOG_TAG, "Failed to create the local package repository index: " + e.getMessage());
+        }
     }
 
     /**
