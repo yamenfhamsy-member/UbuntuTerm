@@ -55,6 +55,7 @@ import com.termux.terminal.TerminalSessionClient;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -479,11 +480,30 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
 
         executionCommand.setShellCommandShellEnvironment = true;
 
+        // UbuntuTerm: a command with a path of the guest is executed inside the Ubuntu guest,
+        // a command of the host runtime keeps running in the host. The working directory of the
+        // host process has to exist on the device, so a guest path is replaced by the home
+        // directory of the application.
+        HashMap<String, String> additionalEnvironment = null;
+        if (UbuntuSessionLauncher.shouldRunInsideGuest(executionCommand.executable)
+            && UbuntuRootFsManager.getState(this).installed && UbuntuSessionLauncher.isHostRuntimeReady()) {
+            String[] ubuntuCommand = UbuntuSessionLauncher.buildCommandForExecutable(this,
+                executionCommand.executable, executionCommand.arguments, executionCommand.workingDirectory);
+            executionCommand.executable = ubuntuCommand[0];
+            executionCommand.arguments = Arrays.copyOfRange(ubuntuCommand, 1, ubuntuCommand.length);
+            if (executionCommand.workingDirectory != null &&
+                !executionCommand.workingDirectory.startsWith("/data/data/"))
+                executionCommand.workingDirectory = TermuxConstants.TERMUX_HOME_DIR_PATH;
+            additionalEnvironment = UbuntuSessionLauncher.buildHostEnvironmentOverrides();
+            UbuntuGuestSetup.prepareSession(this);
+            Logger.logDebug(LOG_TAG, "Starting task inside the Ubuntu guest");
+        }
+
         if (Logger.getLogLevel() >= Logger.LOG_LEVEL_VERBOSE)
             Logger.logVerboseExtended(LOG_TAG, executionCommand.toString());
 
         AppShell newTermuxTask = AppShell.execute(this, executionCommand, this,
-            new TermuxShellEnvironment(), null,false);
+            new TermuxShellEnvironment(), additionalEnvironment,false);
         if (newTermuxTask == null) {
             Logger.logError(LOG_TAG, "Failed to execute new TermuxTask command for:\n" + executionCommand.getCommandIdAndLabelLogString());
             // If the execution command was started for a plugin, then process the error
@@ -590,11 +610,13 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         // UbuntuTerm: the Ubuntu guest is the default environment. Only sessions without an
         // explicit executable are started inside Ubuntu, the failsafe session keeps using the
         // host (Termux) shell.
+        HashMap<String, String> additionalEnvironment = null;
         if (executionCommand.executable == null && !executionCommand.isFailsafe) {
             if (UbuntuRootFsManager.getState(this).installed && UbuntuSessionLauncher.isHostRuntimeReady()) {
                 String[] ubuntuCommand = UbuntuSessionLauncher.buildCommand(this);
                 executionCommand.executable = ubuntuCommand[0];
                 executionCommand.arguments = Arrays.copyOfRange(ubuntuCommand, 1, ubuntuCommand.length);
+                additionalEnvironment = UbuntuSessionLauncher.buildHostEnvironmentOverrides();
                 UbuntuGuestSetup.prepareSession(this);
                 Logger.logDebug(LOG_TAG, "Starting session inside the Ubuntu guest");
             } else {
@@ -612,7 +634,7 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         // Otherwise if command was manually started by the user like by adding a new terminal session,
         // then no need to set stdout
         TermuxSession newTermuxSession = TermuxSession.execute(this, executionCommand, getTermuxTerminalSessionClient(),
-            this, new TermuxShellEnvironment(), null, executionCommand.isPluginExecutionCommand);
+            this, new TermuxShellEnvironment(), additionalEnvironment, executionCommand.isPluginExecutionCommand);
         if (newTermuxSession == null) {
             Logger.logError(LOG_TAG, "Failed to execute new TermuxSession command for:\n" + executionCommand.getCommandIdAndLabelLogString());
             // If the execution command was started for a plugin, then process the error
