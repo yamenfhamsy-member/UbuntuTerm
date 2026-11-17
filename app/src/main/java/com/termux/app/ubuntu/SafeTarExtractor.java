@@ -211,16 +211,26 @@ class SafeTarExtractor {
                         try {
                             Files.createLink(destination, source);
                         } catch (IOException | UnsupportedOperationException e) {
-                            // Fall back to a copy when hard links are not supported.
-                            if (!Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS))
-                                throw new IOException("Failed to create hard link \"" + name + "\": " + e.getMessage(), e);
+                            // The archive of the Ubuntu base image contains more than a hundred hard
+                            // links of the coreutils binary. Android rejects a hard link when the
+                            // file system or the security policy of the device does not allow it,
+                            // so a relative symbolic link to the same file is created instead of a
+                            // full copy: a copy of every member would need more than a gigabyte.
                             try {
-                                Files.copy(source, destination, LinkOption.NOFOLLOW_LINKS);
-                            } catch (IOException copyError) {
-                                throw new IOException("Failed to create hard link \"" + name + "\": " + copyError.getMessage(), copyError);
+                                Path parent = destination.getParent();
+                                Path relativeTarget = (parent != null) ? parent.relativize(source) : source;
+                                Files.createSymbolicLink(destination, relativeTarget);
+                            } catch (IOException | UnsupportedOperationException symlinkError) {
+                                if (!Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS))
+                                    throw new IOException("Failed to create hard link \"" + name + "\": " + e.getMessage(), e);
+                                try {
+                                    Files.copy(source, destination, LinkOption.NOFOLLOW_LINKS);
+                                } catch (IOException copyError) {
+                                    throw new IOException("Failed to create hard link \"" + name + "\": " + copyError.getMessage(), copyError);
+                                }
+                                verifyInsideRoot(destination.toRealPath(), destination);
+                                applyMode(destination, mode, false);
                             }
-                            verifyInsideRoot(destination.toRealPath(), destination);
-                            applyMode(destination, mode, false);
                         }
                         break;
                     }

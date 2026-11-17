@@ -182,6 +182,77 @@ public class SafeTarExtractorTest {
         Assert.assertFalse(Files.exists(target.toPath().resolve("evil"), LinkOption.NOFOLLOW_LINKS));
     }
 
+    /**
+     * The Ubuntu base image stores the binary of the core utilities once and links it more than
+     * a hundred times. A hard link that the file system of the device refuses must not fall back
+     * to a full copy of the file: a relative symbolic link to the original file is created
+     * instead, so the extraction needs the space of the file only once.
+     */
+    @Test
+    public void extractsHardLinksWithoutCopyingTheFile() throws Exception {
+        File archive = writeArchive(buildTar(
+            Member.directory("usr", 0755),
+            Member.directory("usr/bin", 0755),
+            Member.file("usr/bin/coreutils", 0755, "the core utilities"),
+            Member.hardlink("usr/bin/ls", "usr/bin/coreutils"),
+            Member.hardlink("usr/bin/cp", "usr/bin/coreutils")));
+        File target = temporaryFolder.newFolder("rootfs-hard-links");
+
+        long entries = SafeTarExtractor.extract(archive, target, null);
+
+        Assert.assertEquals(5, entries);
+        Path original = target.toPath().resolve("usr/bin/coreutils");
+        Path link = target.toPath().resolve("usr/bin/ls");
+        Path secondLink = target.toPath().resolve("usr/bin/cp");
+
+        Assert.assertEquals("the core utilities", new String(Files.readAllBytes(link), StandardCharsets.UTF_8));
+        Assert.assertEquals("the core utilities", new String(Files.readAllBytes(secondLink), StandardCharsets.UTF_8));
+
+        // The device supports hard links: the members share the inode of the original file.
+        // Otherwise the extractor creates a relative symbolic link instead of a copy.
+        if (Files.isSymbolicLink(link)) {
+            Assert.assertFalse("The symbolic link must not be absolute", Files.readSymbolicLink(link).isAbsolute());
+            Assert.assertEquals(original.getFileName(), Files.readSymbolicLink(link).getFileName());
+        } else {
+            Assert.assertEquals(Files.getAttribute(original, "unix:ino"),
+                Files.getAttribute(link, "unix:ino"));
+        }
+    }
+
+    /** A hard link to a path outside of the extraction root is refused. */
+    @Test
+    public void rejectsHardLinksToUnsafePaths() throws Exception {
+        File archive = writeArchive(buildTar(Member.hardlink("evil", "../outside.txt")));
+        File target = temporaryFolder.newFolder("rootfs-hard-link-traversal");
+
+        try {
+            SafeTarExtractor.extract(archive, target, null);
+            Assert.fail("Expected the extractor to reject a hard link to an unsafe path");
+        } catch (IOException expected) {
+            Assert.assertTrue(expected.getMessage().contains("unsafe path"));
+        }
+
+        Assert.assertFalse(Files.exists(target.toPath().resolve("evil"), LinkOption.NOFOLLOW_LINKS));
+    }
+
+    /** A hard link to a symbolic link of the archive is refused. */
+    @Test
+    public void rejectsHardLinksToSymbolicLinks() throws Exception {
+        File archive = writeArchive(buildTar(
+            Member.symlink("link", "/etc/passwd"),
+            Member.hardlink("evil", "link")));
+        File target = temporaryFolder.newFolder("rootfs-hard-link-symlink");
+
+        try {
+            SafeTarExtractor.extract(archive, target, null);
+            Assert.fail("Expected the extractor to reject a hard link to a symbolic link");
+        } catch (IOException expected) {
+            Assert.assertTrue(expected.getMessage().contains("symbolic link"));
+        }
+
+        Assert.assertFalse(Files.exists(target.toPath().resolve("evil"), LinkOption.NOFOLLOW_LINKS));
+    }
+
     /** A member must never be written through a symbolic link that was extracted before it. */
     @Test
     public void doesNotWriteThroughASymlink() throws Exception {
@@ -399,6 +470,10 @@ public class SafeTarExtractorTest {
 
         static Member symlink(String name, String target) {
             return new Member(name, '2', 0777, new byte[0], target);
+        }
+
+        static Member hardlink(String name, String target) {
+            return new Member(name, '1', 0755, new byte[0], target);
         }
     }
 }
