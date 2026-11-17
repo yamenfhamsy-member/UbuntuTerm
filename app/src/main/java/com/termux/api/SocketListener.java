@@ -43,7 +43,8 @@ public class SocketListener {
                              DataInputStream in = new DataInputStream(con.getInputStream());
                              BufferedWriter out = new BufferedWriter(new OutputStreamWriter(con.getOutputStream()))) {
                             // only accept connections from Termux programs
-                            if (con.getPeerCredentials().getUid() != app.getApplicationInfo().uid) {
+                            int peerUid = con.getPeerCredentials().getUid();
+                            if (peerUid != app.getApplicationInfo().uid) {
                                 continue;
                             }
                             try {
@@ -235,6 +236,12 @@ public class SocketListener {
                                 for (Map.Entry<String, long[]> e : longArrayExtras.entrySet()) {
                                     intent.putExtra(e.getKey(), e.getValue());
                                 }
+                                // The guest runs inside PRoot with a faked root user, so the
+                                // client sends 0 as its uid. The uid of the process that owns
+                                // the connection is the real one, it is used instead so that the
+                                // API service can check whether the client is still alive.
+                                intent.putExtra("api_server_uid", peerUid);
+
                                 app.getApplicationContext().sendOrderedBroadcast(intent, null);
                                 // send a null byte as a sign that the arguments have been successfully received, parsed and the broadcast receiver is called
                                 con.getOutputStream().write(0);

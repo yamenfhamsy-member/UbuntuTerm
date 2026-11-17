@@ -499,8 +499,10 @@ public abstract class ResultReturner {
         String apiServerProcessLabel = getApiServerLabel(intent);
 
         // If the api server uid is different from current app process, like root user, then the
-        // app uid will not be able to read its `/proc/<pid>/stat` file.
-        if (apiServerUid != applicationInfo.uid) {
+        // app uid will not be able to read its `/proc/<pid>/stat` file. A uid of 0 is accepted as
+        // a fallback: a client inside PRoot reports the faked root user instead of the real uid
+        // of the application process if the value of the socket peer could not be used.
+        if (apiServerUid != applicationInfo.uid && apiServerUid != 0) {
             // Even if the api server uid is different from current app process, it can still send
             // commands with a filesystem path socket, as only ownership of parent directory needs
             // to belong to current app process when creating socket file. This is done by
