@@ -231,6 +231,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         super.onCreate(savedInstanceState);
 
+        // The state of the storage permission is remembered, so that the first resume does not
+        // report a change that the user did not make.
+        mHasStorageAccess = UbuntuStorage.hasStoragePermission(this);
+
         setContentView(R.layout.activity_termux);
 
         // Load termux shared preferences
