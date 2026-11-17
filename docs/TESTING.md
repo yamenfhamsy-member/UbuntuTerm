@@ -8,7 +8,7 @@ report (`final-output/reports/`) and in the Telegram status message.
 | Test | Tool | Expected result |
 |---|---|---|
 | Gradle build | `./gradlew assembleRelease` | APK is produced |
-| Unit tests | `./gradlew testReleaseUnitTest` | all tests pass (the result of every test is printed into the build log) (includes the tar extractor security tests: a symlink with an absolute target is created, a relative target that escapes the root is refused, no member is written outside of the extraction root and the permissions of the archive are applied exactly; the storage link tests: a wrong link is repaired, a real file is never deleted and the shared storage is bound; the bootstrap checksum tests: the published checksum is accepted and a modified checksum is refused; and the bidirectional text tests of the terminal view) |
+| Unit tests | `./gradlew testReleaseUnitTest` | all tests pass (the result of every test is printed into the build log) (includes the tar extractor security tests: a symlink with an absolute target is created, a relative target that escapes the root is refused, a hard link to an unsafe path or to a symbolic link is refused, the hard links of the base image are extracted as a link and not as a copy, no member is written outside of the extraction root and the permissions of the archive are applied exactly; the storage link tests: a wrong link is repaired, a real file is never deleted and the shared storage is bound; the bootstrap checksum tests: the published checksum is accepted and a modified checksum is refused; and the bidirectional text tests of the terminal view) |
 | Package id | `aapt2 dump badging` | `name='com.ubutumerm.app'` |
 | Application label | `aapt2 dump badging` | `application-label:'UbuntuTerm'` |
 | Version | `aapt2 dump badging` | `versionCode`/`versionName` are printed into the report |
@@ -74,7 +74,12 @@ workflow. The list is part of the manual test plan:
 12. open the context menu → "Ubuntu manager" → "Repair installation" → the session still works
     and the installed packages are still there,
 13. type an Arabic sentence in the terminal (`echo "مرحبا بالعالم"`) → the text is rendered from
-    right to left and is not mirrored or cut off.
+    right to left and is not mirrored or cut off,
+14. run `termux-torch on` → the system asks for the camera permission and the torch is toggled
+    after the grant,
+15. run `termux-wake-lock` → the session keeps running with the screen off (or the device stays
+    awake), `termux-wake-unlock` releases the lock again,
+16. run `termux-open-url https://ubuntu.com` → the browser of the device opens the address.
 
 ## Layer 3 – Ubuntu guest tests (executed inside the guest)
 
@@ -82,15 +87,18 @@ workflow. The list is part of the manual test plan:
 |---|---|---|
 | Guest identity | `cat /etc/os-release` | `VERSION="26.04.1 LTS (Resolute Raccoon)"` |
 | Architecture | `dpkg --print-architecture` | `arm64` |
+| Package source | `grep URIs /etc/apt/sources.list.d/ubuntu.sources` | `http://ports.ubuntu.com/ubuntu-ports/` |
+| Package sandbox | `grep Sandbox /etc/apt/apt.conf.d/99ubuntuterm-proot` | `APT::Sandbox::User "root";` |
 | Package index | `apt-get update` | no error |
 | Installation | `apt-get install -y python3 git curl ca-certificates` | packages installed |
 | Consistency | `apt-get check` | no broken package |
 | Consistency | `dpkg --audit` | no output |
+| Hard links | `ls -l /usr/bin/arch /usr/bin/ls` | symbolic links or shared inodes, no independent copies (the rootfs must not grow by a gigabyte) |
 | Python | `python3 -c "print('UbuntuTerm test passed')"` | prints the text |
 | Git | `git --version` | prints a version |
 | Curl | `curl --version` | prints a version |
-| HTTPS/TLS | `curl -sSI https://archive.ubuntu.com` | HTTP status line |
-| DNS | `getent hosts archive.ubuntu.com` | an address |
+| HTTPS/TLS | `curl -sSI https://ports.ubuntu.com` | HTTP status line |
+| DNS | `getent hosts ports.ubuntu.com` | an address |
 | Compiler | `gcc hello.c -o hello && ./hello` | prints the test text |
 | Persistence | create a file, restart the session | the file is still there |
 
@@ -103,10 +111,16 @@ workflow. The list is part of the manual test plan:
 | Clipboard write | `termux-clipboard-set "hello"` | exit code 0 |
 | Clipboard read | `termux-clipboard-get` | prints `hello` |
 | Notification | `termux-notification -t t -c c` | notification is shown |
+| Wake lock | `termux-wake-lock && termux-wake-unlock` | exit code 0, the notification of the running session stays |
+| Browser | `termux-open-url https://ubuntu.com` | the browser opens the address |
+| Browser, refused scheme | `termux-open-url file:///etc/passwd` | exit code 0, no application is started |
+| Torch | `termux-torch on` / `termux-torch off` | the first run requests the camera permission, then the torch is toggled |
+| Wi-Fi | `termux-wifi-connectioninfo` | JSON on stdout |
+| Removed methods | `termux-sms-list` | command not found (the wrapper was removed) |
 | Protocol | the client returns a non-zero exit code and an error on stderr when the application is not running | error is reported |
 
 The bridge was verified by the static analysis of the protocol (see
-[ARCHITECTURE.md](ARCHITECTURE.md)) and by the successful round trip of the Python client in
+[ARCHITECTURE.md](ARCHITECTURE.md)) and by the successful round trip of the client in
 the CI environment; the runtime verification on a device is part of the manual test plan.
 
 ## How to repeat the tests
@@ -120,9 +134,12 @@ gh run watch --repo yamenfhamsy-member/UbuntuTerm
 uname -a
 cat /etc/os-release
 dpkg --print-architecture
+grep URIs /etc/apt/sources.list.d/ubuntu.sources
 apt-get update && apt-get install -y python3 git curl ca-certificates
 apt-get check && dpkg --audit
 python3 -c "print('UbuntuTerm test passed')"
 termux-battery-status
 termux-toast "UbuntuTerm"
+termux-wake-lock && termux-wake-unlock
+termux-open-url https://ubuntu.com
 ```

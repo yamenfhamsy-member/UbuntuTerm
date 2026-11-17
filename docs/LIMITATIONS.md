@@ -27,8 +27,8 @@ unavailable or restricted.
 | Shared storage needs an explicit user grant | The guest can mount the shared storage only after the user grants the storage permission: `READ`/`WRITE_EXTERNAL_STORAGE` on Android 10 and below, or `MANAGE_EXTERNAL_STORAGE` ("All files access") on Android 11 and above. Without the permission `/sdcard` inside the guest falls back to `/storage/emulated/0/Android/data/com.ubutumerm.app/files` |
 | The storage permission is requested only when the user asks for it | `MANAGE_EXTERNAL_STORAGE` is a sensitive permission, so it is never requested silently: the "Storage access" entry of the context menu explains the options and opens the system settings |
 | The host prefix is not visible inside the guest | Mixing Bionic binaries and libraries into a glibc system breaks the dynamic linker |
-| The host `apt` repositories are disabled in the host prefix | The official Termux packages are compiled for `/data/data/com.termux/files/usr` and would be unusable. The host prefix only provides the local repository that was built together with the bootstrap |
-| The Termux:API methods that need dangerous permissions are not exposed | Camera, SMS, contacts, call log, location, microphone, USB, NFC and fingerprint are not part of the embedded implementation |
+| The host `apt` repositories are disabled in the host prefix | The official Termux packages are compiled for `/data/data/com.termux/files/usr` and would be unusable. The host prefix only provides the local repository that was built together with the bootstrap (its index is created by the installer, so `apt update` works in the host mode) |
+| The Termux:API methods that need dangerous runtime permissions are not exposed | SMS, contacts, call log, location, microphone, USB, NFC and fingerprint: their wrappers were removed because no handler exists. The torch works after the camera permission is granted, the SSID of the Wi-Fi info is only reported after the location permission is granted |
 | The notification listener (Termux:API `NotificationList`) is not available | It requires a separate notification listener service |
 | No `Termux:Boot`, `Termux:Tasker`, `Termux:Widget` add-ons | They are separate applications that would have to be signed with the same key; the embedded API covers the functionality that is needed inside Ubuntu |
 | The Termux bootstrap is not part of the APK | it has to match the application id of the fork, so the user imports `bootstrap-aarch64.zip` from the storage of the device with the import screen of the application |
@@ -49,3 +49,15 @@ unavailable or restricted.
 * The bootstrap archive is verified against the published SHA-256 checksum. An archive with a
   different checksum can still be installed, but only after an explicit confirmation that shows
   the calculated checksum.
+* The guest package sources are rewritten to `ports.ubuntu.com/ubuntu-ports` at every session
+  start. The mirrors of the base image do not serve the packages of the arm64 architecture, so
+  `apt update` failed with `404` before the rewrite.
+* The package manager runs with the sandbox user of APT disabled (`APT::Sandbox::User "root"`),
+  because the file system of the guest is owned by the application and `_apt` cannot read it.
+* The hard links of the base image are extracted as hard links. When the file system of the
+  device refuses a hard link, a relative symbolic link to the same file is created; the file is
+  copied only when the device supports neither. Without this fallback the more than one hundred
+  hard links of the core utilities would need more than a gigabyte of additional space.
+* The temporary directory of the guest is a bind mount of the temporary directory of the
+  application: the guest writes its temporary files outside of the rootfs, so downloading and
+  unpacking packages does not consume the space of the rootfs twice.

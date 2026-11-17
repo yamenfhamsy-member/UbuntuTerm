@@ -254,6 +254,28 @@ PUBLISHED_SHA256 = "92fba67d49916718f1bd5631dc8a6e96586222f8ab720218c4f3e73c8519
 
 ---
 
+## 9.1 الجولة الثانية — إصلاحات ما بعد المراجعة
+
+| الإصلاح | الحالة | الموضع |
+|---|---|---|
+| مستودع `apt` للذراع: `ports.ubuntu.com/ubuntu-ports` بدل مرايا x86 | ✅ كُتب عند التثبيت وعند كل جلسة | `UbuntuGuestSetup.writeAptConfig()` |
+| تعطيل مستخدم الـ sandbox `_apt` (الـ rootfs ملك التطبيق) | ✅ | `etc/apt/apt.conf.d/99ubuntuterm-proot` |
+| تعليق عميل API على `accept()` عندما لا يُرسل التطبيق stdin | ✅ `kill('TERM')` قبل `waitpid` + معالج TERM في الابن | `assets/ubuntu/termux-api.pl` |
+| استهلاك مساحة الروابط الصلبة (نسخ كل رابط ≈ 1.15 GB) | ✅ رابط رمزي نسبي قبل اللجوء إلى النسخ | `SafeTarExtractor` |
+| `api_server_uid` خاطئ تحت `proot -0` | ✅ يُجلب `SO_PEERCRED` الحقيقي من المقبس ويُقبل 0 كبديل | `SocketListener` / `ResultReturner` |
+| بيئة PRoot ملوّثة و`TMPDIR` غير موجود، و`/tmp` غير مربوط | ✅ `env -i` + `LD_PRELOAD` فارغ + `PROOT_TMP_DIR` + ربط `/tmp` | `UbuntuSessionLauncher` |
+| أوامر `RUN_COMMAND` ذات المسارات الضيفية تُنفّذ في المضيف | ✅ توجيه عبر `buildCommandForExecutable` + بيئة الضيف | `TermuxService.createTermuxTask` |
+| فهرس المستودع المحلي في وضع المضيف (`var/local-repo`) | ✅ يُنشأ عند التثبيت إن لم يوجد | `TermuxInstaller.createLocalRepositoryIndex` |
+| 20 غلافاً بلا معالج (SMS، جهات الاتصال، الموقع، USB، NFC …) | ✅ حُذفت (المتبقي 38 غلافاً) | `assets/ubuntu/bin/` |
+| `termux-wake-lock` / `termux-wake-unlock` / `termux-open-url` | ✅ طرق API مدمجة بدل `am` غير المتاح في الضيف | `TermuxApiReceiver` + الأغلفة |
+| إذن الكاميرا للمصباح والموقع لاسم الشبكة | ✅ في المانيفست + بوابة إذن للمصباح | `AndroidManifest.xml` |
+
+بندان من خطة الجولة الثانية لم يُنفّذا لأن فرضيتهما غير صحيحة: تمرير واصفات الملفات
+(`SCM_RIGHTS`) غير مستخدم في هذا التطبيق — نتائج SAF تُبثّ عبر مقبس النتيجة — و`am` غير
+متاح داخل الضيف (لا يوجد ربط لـ `/system/bin`)، فاستُخدمت طرق API بدلاً من أوامر `am`.
+
+---
+
 ## 10. خارطة الطريق المقترحة
 
 1. **الآن**: تسليم APK مع إصلاحات التخزين والـ bootstrap وواجهة الإصلاح/الحذف وRTL.

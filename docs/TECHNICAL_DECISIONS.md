@@ -128,8 +128,12 @@ into the main application. The protocol is unchanged, so the official client wou
 well; a Python re-implementation of the client is used inside the guest, because the official
 client is a Bionic binary and cannot run inside the glibc guest.
 
-Only API methods that work without dangerous runtime permissions are exposed (no camera, no
-SMS, no contacts, no location, no call log). See [LIMITATIONS.md](LIMITATIONS.md).
+Only API methods that work without dangerous runtime permissions are exposed. The wrappers of
+the methods that need a dangerous permission without which they cannot work at all (SMS,
+contacts, call log, location, microphone, USB, NFC and fingerprint) were removed from the
+asset directory, so the guest does not offer commands that can only fail. The torch is
+available after the camera permission grant, the wake lock and the browser are safe for any
+application. See [LIMITATIONS.md](LIMITATIONS.md).
 
 ## 10. The build only happens in GitHub Actions
 

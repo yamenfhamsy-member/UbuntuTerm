@@ -27,7 +27,8 @@ Ubuntu/glibc never replaces the Android runtime.**
 │  -0 --kill-on-exit --link2symlink --sysvipc -L                        │
 │  --rootfs=<rootfs> --cwd=/root                                        │
 │  --bind=/dev --bind=/proc --bind=/sys                                 │
-│  --bind=<app home>:/root --bind=<external files>:/sdcard              │
+│  --bind=<app home>:/root --bind=<app tmp>:/tmp                        │
+│  --bind=<external files>:/sdcard                                      │
 └───────────────────────────────┬───────────────────────────────────────┘
                                 │ ptrace based path translation
 ┌───────────────────────────────▼───────────────────────────────────────┐
@@ -36,13 +37,13 @@ Ubuntu/glibc never replaces the Android runtime.**
 │  /bin/bash, apt, dpkg, coreutils, python3, git, curl, gcc …          │
 │  /root            → bound to the application home directory            │
 │  /usr/local/bin   → Termux:API command wrappers (termux-toast, …)     │
-│  /usr/local/lib/ubuntukerm/termux-api → Python API client             │
+│  /usr/local/lib/ubutumerm/termux-api → Perl API client                │
 └───────────────────────────────┬───────────────────────────────────────┘
                                 │ abstract UNIX socket (same network namespace)
 ┌───────────────────────────────▼───────────────────────────────────────┐
 │ D. Android API bridge                                                 │
 │                                                                       │
-│  guest:  termux-toast ──► termux-api (Python)                        │
+│  guest:  termux-toast ──► termux-api (Perl)                          │
 │          two abstract sockets (result + stdin), length prefixed cmd   │
 │                                                                       │
 │  host:   SocketListener ──► TermuxApiReceiver ──► *API classes       │
@@ -101,7 +102,7 @@ The bridge re-uses the **official Termux:API protocol** so that the behaviour an
 command line interface stay compatible:
 
 1. The guest command (for example `termux-toast`) calls
-   `/usr/local/lib/ubuntukerm/termux-api`, a Python implementation of the official
+   `/usr/local/lib/ubutumerm/termux-api`, a Perl implementation of the official
    `termux-api` client.
 2. The client creates two abstract UNIX sockets (one for the result, one for stdin) and
    connects to the abstract socket `com.ubutumerm.app.api://listen` of the application.
@@ -129,3 +130,19 @@ launcher → TermuxActivity → TermuxService → bootstrap missing? → UbuntuB
              → atomic swap → write the stamp file
          → back to TermuxActivity → new session → PRoot → Ubuntu login shell
 ```
+
+The preparation of the guest writes the files that the base image does not contain or that
+depend on the device and on the application:
+
+* `etc/resolv.conf` – the resolvers of the host,
+* `etc/apt/sources.list.d/ubuntu.sources` – the `ports.ubuntu.com/ubuntu-ports` repository
+  of the arm64 architecture (the base image points to `archive.ubuntu.com`, which does not
+  serve arm64 packages),
+* `etc/apt/apt.conf.d/99ubuntuterm-proot` – disables the `_apt` sandbox user, the rootfs is
+  owned by the application,
+* `/usr/local/bin/termux-*` – the wrappers of the embedded Termux:API client,
+* `etc/ubuntuterm-release` – the version of the bundled Ubuntu release.
+
+`UbuntuGuestSetup.prepareSession()` rewrites the resolver and the package configuration on
+every start, so a rootfs that was installed by an older version of the application is
+repaired without a reinstall.
