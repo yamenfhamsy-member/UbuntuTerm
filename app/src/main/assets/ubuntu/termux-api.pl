@@ -196,6 +196,10 @@ sub main {
 
     if ($pid == 0) {
         close($output_server);
+        # The application only connects to the input socket for the methods that read stdin.
+        # The parent terminates this process once the result has been received, the handler
+        # must close the listener so that the process does not stay alive.
+        $SIG{TERM} = sub { close($input_server); exit(0); };
         my $connection;
         if (accept($connection, $input_server)) {
             binmode(STDIN);
@@ -209,6 +213,7 @@ sub main {
             shutdown($connection, 1);
             close($connection);
         }
+        close($input_server);
         exit(0);
     }
 
@@ -231,6 +236,9 @@ sub main {
     }
     close($output_server);
 
+    # The input child blocks in accept() when the application does not read stdin (for the
+    # methods that do not use it), it is therefore terminated before it is waited for.
+    kill('TERM', $pid);
     waitpid($pid, 0);
     return $exit_code;
 }
