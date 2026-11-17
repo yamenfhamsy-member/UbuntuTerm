@@ -1,0 +1,23 @@
+#!/bin/bash
+set -e -u
+
+SCRIPTNAME=termux-open-url
+show_usage () {
+    echo "Usage: $SCRIPTNAME url"
+    echo "Opens the URL in the default browser of the device."
+    echo " -h  show this help"
+    exit 0
+}
+
+while getopts :h option
+do
+    case "$option" in
+        h) show_usage;;
+        ?) echo "$SCRIPTNAME: illegal option -$OPTARG"; exit 1;
+    esac
+done
+shift $((OPTIND-1))
+
+if [ $# != 1 ]; then echo "$SCRIPTNAME: Invalid argument count"; exit 1; fi
+
+/usr/local/lib/ubutumerm/termux-api OpenURL --es url "$1"

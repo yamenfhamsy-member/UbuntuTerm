@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.provider.Settings;
 import android.widget.Toast;
 
@@ -30,10 +31,12 @@ import com.termux.api.apis.WallpaperAPI;
 import com.termux.api.apis.WifiAPI;
 import com.termux.api.activities.TermuxApiPermissionActivity;
 import com.termux.api.util.ResultReturner;
+import com.termux.app.TermuxService;
 import com.termux.shared.data.IntentUtils;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.markdown.MarkdownUtils;
 import com.termux.shared.termux.TermuxConstants;
+import com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_SERVICE;
 import com.termux.shared.termux.plugins.TermuxPluginUtils;
 
 /**
@@ -148,6 +151,8 @@ public class TermuxApiReceiver extends BroadcastReceiver {
                 ToastAPI.onReceive(context, intent);
                 break;
             case "Torch":
+                if (!TermuxApiPermissionActivity.checkAndRequestPermissions(context, intent, Manifest.permission.CAMERA))
+                    return;
                 TorchAPI.onReceive(this, context, intent);
                 break;
             case "Vibrate":
@@ -165,10 +170,60 @@ public class TermuxApiReceiver extends BroadcastReceiver {
             case "WifiEnable":
                 WifiAPI.onReceiveWifiEnable(this, context, intent);
                 break;
+            case "WakeLock":
+                startServiceAction(context, TERMUX_SERVICE.ACTION_WAKE_LOCK);
+                ResultReturner.noteDone(this, intent);
+                break;
+            case "WakeUnlock":
+                startServiceAction(context, TERMUX_SERVICE.ACTION_WAKE_UNLOCK);
+                ResultReturner.noteDone(this, intent);
+                break;
+            case "OpenURL":
+                openUrl(context, intent);
+                ResultReturner.noteDone(this, intent);
+                break;
             default:
                 Logger.logError(LOG_TAG, "Unrecognized 'api_method' extra: '" + apiMethod + "'");
                 ResultReturner.noteDone(this, intent);
                 break;
+        }
+    }
+
+    /** Send an action to the {@link TermuxService} of the application. */
+    private static void startServiceAction(Context context, String action) {
+        try {
+            context.startService(new Intent(context, TermuxService.class).setAction(action));
+        } catch (Exception e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to send the action \"" + action + "\"", e);
+        }
+    }
+
+    /**
+     * Open a web address of the API request in the browser of the device.
+     *
+     * <p>Only the {@code http} and {@code https} schemes are accepted, an arbitrary scheme could
+     * be used to start a component of another application.
+     */
+    private static void openUrl(Context context, Intent intent) {
+        String url = intent.getStringExtra("url");
+        if (url == null || url.isEmpty()) {
+            Logger.logError(LOG_TAG, "The 'url' extra is missing");
+            return;
+        }
+
+        Uri uri = Uri.parse(url);
+        String scheme = uri.getScheme();
+        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+            Logger.logError(LOG_TAG, "Refusing to open the unsupported address \"" + url + "\"");
+            return;
+        }
+
+        try {
+            Intent view = new Intent(Intent.ACTION_VIEW, uri);
+            view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(view);
+        } catch (Exception e) {
+            Logger.logStackTraceWithMessage(LOG_TAG, "Failed to open \"" + url + "\"", e);
         }
     }
 
