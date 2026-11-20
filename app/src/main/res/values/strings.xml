@@ -192,6 +192,10 @@
                 <string name="termux_soft_keyboard_enabled_only_if_no_hardware_on">Soft keyboard will be enabled only if
                     no hardware keyboard is connected.</string>
 
+                <string name="termux_volume_keys_swapped_title">Swap volume keys</string>
+                <string name="termux_volume_keys_swapped_off">Volume down acts as Ctrl, volume up acts as Fn.</string>
+                <string name="termux_volume_keys_swapped_on">Volume down acts as Fn, volume up acts as Ctrl.</string>
+
 
         <!-- Terminal View Preferences -->
         <string name="termux_terminal_view_preferences_title">Terminal View</string>

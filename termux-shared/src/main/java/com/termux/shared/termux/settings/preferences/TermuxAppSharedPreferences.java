@@ -111,6 +111,15 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
     }
 
 
+    public boolean areVolumeKeysSwapped() {
+        return SharedPreferenceUtils.getBoolean(mSharedPreferences, TERMUX_APP.KEY_VOLUME_KEYS_SWAPPED, TERMUX_APP.DEFAULT_VALUE_VOLUME_KEYS_SWAPPED);
+    }
+
+    public void setVolumeKeysSwapped(boolean value) {
+        SharedPreferenceUtils.setBoolean(mSharedPreferences, TERMUX_APP.KEY_VOLUME_KEYS_SWAPPED, value, false);
+    }
+
+
 
     public boolean isSoftKeyboardEnabled() {
         return SharedPreferenceUtils.getBoolean(mSharedPreferences, TERMUX_APP.KEY_SOFT_KEYBOARD_ENABLED, TERMUX_APP.DEFAULT_VALUE_KEY_SOFT_KEYBOARD_ENABLED);

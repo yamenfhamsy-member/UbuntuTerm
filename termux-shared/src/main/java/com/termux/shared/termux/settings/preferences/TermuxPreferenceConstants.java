@@ -138,6 +138,9 @@ public final class TermuxPreferenceConstants {
         public static final boolean DEFAULT_VALUE_KEEP_SCREEN_ON = false;
 
 
+        public static final String KEY_VOLUME_KEYS_SWAPPED = "volume_keys_swapped";
+        public static final boolean DEFAULT_VALUE_VOLUME_KEYS_SWAPPED = false;
+
         /**
          * Defines the key for font size of termux terminal view.
          */

@@ -309,10 +309,18 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
             // Do not steal dedicated buttons from a full external keyboard.
             return false;
         } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-            mVirtualControlKeyDown = down;
+            if (mActivity.getPreferences().areVolumeKeysSwapped()) {
+                mVirtualFnKeyDown = down;
+            } else {
+                mVirtualControlKeyDown = down;
+            }
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
-            mVirtualFnKeyDown = down;
+            if (mActivity.getPreferences().areVolumeKeysSwapped()) {
+                mVirtualControlKeyDown = down;
+            } else {
+                mVirtualFnKeyDown = down;
+            }
             return true;
         }
         return false;
