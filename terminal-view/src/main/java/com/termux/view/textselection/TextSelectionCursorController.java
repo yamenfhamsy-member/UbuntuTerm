@@ -32,7 +32,8 @@ public class TextSelectionCursorController implements CursorController {
     private ActionMode mActionMode;
     public final int ACTION_COPY = 1;
     public final int ACTION_PASTE = 2;
-    public final int ACTION_MORE = 3;
+    public final int ACTION_SELECT_ALL = 3;
+    public final int ACTION_MORE = 4;
 
     public TextSelectionCursorController(TerminalView terminalView) {
         this.terminalView = terminalView;
@@ -142,6 +143,7 @@ public class TextSelectionCursorController implements CursorController {
                 ClipboardManager clipboard = (ClipboardManager) terminalView.getContext().getSystemService(Context.CLIPBOARD_SERVICE);
                 menu.add(Menu.NONE, ACTION_COPY, Menu.NONE, R.string.copy_text).setShowAsAction(show);
                 menu.add(Menu.NONE, ACTION_PASTE, Menu.NONE, R.string.paste_text).setEnabled(clipboard != null && clipboard.hasPrimaryClip()).setShowAsAction(show);
+                menu.add(Menu.NONE, ACTION_SELECT_ALL, Menu.NONE, R.string.select_all).setShowAsAction(show);
                 menu.add(Menu.NONE, ACTION_MORE, Menu.NONE, R.string.text_selection_more);
                 return true;
             }
@@ -167,6 +169,9 @@ public class TextSelectionCursorController implements CursorController {
                     case ACTION_PASTE:
                         terminalView.stopTextSelectionMode();
                         terminalView.mTermSession.onPasteTextFromClipboard();
+                        break;
+                    case ACTION_SELECT_ALL:
+                        selectAll();
                         break;
                     case ACTION_MORE:
                         // We first store the selected text in case TerminalViewClient needs the
@@ -426,6 +431,18 @@ public class TextSelectionCursorController implements CursorController {
     /** Unset the selected text stored before "MORE" button was pressed on the context menu. */
     public void unsetStoredSelectedText() {
         mStoredSelectedText = null;
+    }
+
+    /** Select the entire visible buffer including the scrollback transcript. */
+    private void selectAll() {
+        TerminalBuffer screen = terminalView.mEmulator.getScreen();
+        mSelY1 = -screen.getActiveTranscriptRows();
+        mSelX1 = 0;
+        mSelY2 = terminalView.mEmulator.mRows - 1;
+        mSelX2 = terminalView.mEmulator.mColumns - 1;
+        mStartHandle.positionAtVisual(mSelX1, mSelY1, false, false);
+        mEndHandle.positionAtVisual(mSelX2, mSelY2, false, true);
+        terminalView.invalidate();
     }
 
     public ActionMode getActionMode() {

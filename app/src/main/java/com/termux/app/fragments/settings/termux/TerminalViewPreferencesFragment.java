@@ -57,6 +57,9 @@ class TerminalViewPreferencesDataStore extends PreferenceDataStore {
             case "terminal_margin_adjustment":
                     mPreferences.setTerminalMarginAdjustment(value);
                 break;
+            case "fullscreen":
+                    mPreferences.setFullscreenEnabled(value);
+                break;
             default:
                 break;
         }

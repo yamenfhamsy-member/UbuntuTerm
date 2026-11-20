@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.app.AlertDialog;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
@@ -102,7 +103,23 @@ public class TermuxSessionsListViewController extends ArrayAdapter<TermuxSession
     @Override
     public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
         final TermuxSession selectedSession = getItem(position);
-        mActivity.getTermuxTerminalSessionClient().renameSession(selectedSession.getTerminalSession());
+        if (selectedSession == null) return true;
+
+        final TerminalSession terminalSession = selectedSession.getTerminalSession();
+
+        new AlertDialog.Builder(mActivity)
+            .setTitle(terminalSession.mSessionName)
+            .setItems(new CharSequence[]{
+                mActivity.getString(R.string.action_rename_session),
+                mActivity.getString(R.string.action_close_session)
+            }, (dialog, which) -> {
+                if (which == 0) {
+                    mActivity.getTermuxTerminalSessionClient().renameSession(terminalSession);
+                } else {
+                    mActivity.getTermuxTerminalSessionClient().closeSession(terminalSession);
+                }
+            })
+            .show();
         return true;
     }
 

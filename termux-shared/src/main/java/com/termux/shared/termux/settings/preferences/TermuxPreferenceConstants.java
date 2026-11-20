@@ -97,6 +97,13 @@ public final class TermuxPreferenceConstants {
 
 
         /**
+         * Defines the key for whether to hide the status bar in fullscreen mode.
+         */
+        public static final String KEY_FULLSCREEN = "fullscreen";
+        public static final boolean DEFAULT_VALUE_FULLSCREEN = false;
+
+
+        /**
          * Defines the key for whether to show terminal toolbar containing extra keys and text input field.
          */
         public static final String KEY_SHOW_TERMINAL_TOOLBAR = "show_extra_keys";

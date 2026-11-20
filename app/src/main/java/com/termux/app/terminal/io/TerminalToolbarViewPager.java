@@ -51,7 +51,8 @@ public class TerminalToolbarViewPager {
                     mActivity.getTerminalToolbarDefaultHeight());
 
                 // apply extra keys fix if enabled in prefs
-                if (mActivity.getProperties().isUsingFullScreen() && mActivity.getProperties().isUsingFullScreenWorkAround()) {
+                if ((mActivity.getPreferences().isFullscreenEnabled() || mActivity.getProperties().isUsingFullScreen())
+                    && mActivity.getProperties().isUsingFullScreenWorkAround()) {
                     FullScreenWorkAround.apply(mActivity);
                 }
 

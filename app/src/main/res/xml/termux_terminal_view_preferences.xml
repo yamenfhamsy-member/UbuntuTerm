@@ -10,6 +10,12 @@
             app:summaryOn="@string/termux_terminal_view_terminal_margin_adjustment_on"
             app:title="@string/termux_terminal_view_terminal_margin_adjustment_title" />
 
+        <SwitchPreferenceCompat
+            app:key="fullscreen"
+            app:summaryOff="@string/termux_terminal_view_fullscreen_off"
+            app:summaryOn="@string/termux_terminal_view_fullscreen_on"
+            app:title="@string/termux_terminal_view_fullscreen_title" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>

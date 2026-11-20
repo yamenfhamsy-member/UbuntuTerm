@@ -11,6 +11,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.net.Uri;
 import android.os.Build;
+import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.ContextMenu;
@@ -73,6 +74,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.viewpager.widget.ViewPager;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * A terminal emulator activity.
@@ -183,6 +185,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * activity was resumed the last time.
      */
     private boolean mHasStorageAccess;
+    private boolean mIsFullscreen;
 
     private int mNavBarHeight;
 
@@ -259,9 +262,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             return insets;
         });
 
-        if (mProperties.isUsingFullScreen()) {
+        mIsFullscreen = mPreferences.isFullscreenEnabled() || mProperties.isUsingFullScreen();
+        if (mIsFullscreen) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         }
+
+        setDrawerGestureExclusion();
 
         setTermuxTerminalViewAndClients();
 
@@ -344,6 +350,23 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         checkStorageAccessAfterResume();
 
         mIsOnResumeAfterOnCreate = false;
+
+        if (mPreferences != null && shouldUseFullscreen() != mIsFullscreen) {
+            recreate();
+            return;
+        }
+    }
+
+    private boolean shouldUseFullscreen() {
+        return mPreferences.isFullscreenEnabled() || mProperties.isUsingFullScreen();
+    }
+
+    private void setDrawerGestureExclusion() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return;
+        mTermuxActivityRootView.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            int edgeWidth = (int) (24 * getResources().getDisplayMetrics().density);
+            v.setSystemGestureExclusionRects(Collections.singletonList(new Rect(0, 0, Math.min(edgeWidth, v.getWidth()), v.getHeight())));
+        });
     }
 
     /**

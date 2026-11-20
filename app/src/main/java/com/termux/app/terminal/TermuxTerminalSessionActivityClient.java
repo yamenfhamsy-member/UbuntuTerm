@@ -361,6 +361,11 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         }
     }
 
+    public void closeSession(final TerminalSession sessionToClose) {
+        if (sessionToClose == null) return;
+        removeFinishedSession(sessionToClose);
+    }
+
     public void addNewSession(boolean isFailSafe, String sessionName) {
         TermuxService service = mActivity.getTermuxService();
         if (service == null) return;
