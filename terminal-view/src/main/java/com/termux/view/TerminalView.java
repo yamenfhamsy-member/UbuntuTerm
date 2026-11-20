@@ -7,6 +7,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Handler;
@@ -1641,7 +1642,17 @@ public final class TerminalView extends View {
         }
     }
 
-
+    @Override
+    protected void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect) {
+        super.onFocusChanged(focused, direction, previouslyFocusedRect);
+        if (mEmulator != null) {
+            if (focused) {
+                mEmulator.focusGained();
+            } else {
+                mEmulator.focusLost();
+            }
+        }
+    }
 
     /**
      * Define functions required for long hold toolbar.

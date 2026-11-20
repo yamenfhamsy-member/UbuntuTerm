@@ -1837,7 +1837,8 @@ public final class TerminalEmulator {
             case 1002:
             case 1003:
             case 1004:
-            case 1005: // UTF-8 mouse mode, ignore.
+                setDecsetinternalBit(DECSET_BIT_SEND_FOCUS_EVENTS, setting);
+                break;
             case 1006: // SGR Mouse Mode
             case 1015:
             case 1034: // Interpret "meta" key, sets eighth bit.
@@ -3549,6 +3550,20 @@ public final class TerminalEmulator {
         if (bracketed) mSession.write("\033[200~");
         mSession.write(text);
         if (bracketed) mSession.write("\033[201~");
+    }
+
+    /** DECSET 1004: Send focus in/out escape sequences to the application. */
+    public void focusGained() {
+        if (isDecsetInternalBitSet(DECSET_BIT_SEND_FOCUS_EVENTS)) {
+            mSession.write("\033[I");
+        }
+    }
+
+    /** DECSET 1004: Send focus in/out escape sequences to the application. */
+    public void focusLost() {
+        if (isDecsetInternalBitSet(DECSET_BIT_SEND_FOCUS_EVENTS)) {
+            mSession.write("\033[O");
+        }
     }
 
     /** http://www.vt100.net/docs/vt510-rm/DECSC */
