@@ -18,7 +18,6 @@ public final class GuestDistros {
     static {
         DISTROS.put(UbuntuDistro.UBUNTU.id(), UbuntuDistro.UBUNTU);
         DISTROS.put(ArchDistro.ARCH.id(), ArchDistro.ARCH);
-        DISTROS.put(KaliDistro.KALI.id(), KaliDistro.KALI);
     }
 
     /** The default distro of UbuntuTerm (Ubuntu). */
