@@ -44,6 +44,7 @@ import com.termux.shared.data.IntentUtils;
 import com.termux.app.ubuntu.UbuntuStorage;
 import com.termux.shared.android.PermissionUtils;
 import com.termux.shared.interact.MessageDialogUtils;
+import com.termux.shared.interact.ShareUtils;
 import com.termux.shared.data.DataUtils;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP.TERMUX_ACTIVITY;
@@ -209,6 +210,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private static final int CONTEXT_MENU_REPORT_ID = 9;
     private static final int CONTEXT_MENU_STORAGE_ID = 12;
     private static final int CONTEXT_MENU_UBUNTU_ID = 13;
+    private static final int CONTEXT_MENU_COPY_ID = 14;
 
     /** Extra used to start the host (Termux) shell instead of the Ubuntu guest. */
     public static final String EXTRA_UBUNTU_HOST_MODE = "com.termux.app.EXTRA_UBUNTU_HOST_MODE";
@@ -748,6 +750,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         menu.add(Menu.NONE, CONTEXT_MENU_SHARE_TRANSCRIPT_ID, Menu.NONE, R.string.action_share_transcript);
         if (!DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText()))
             menu.add(Menu.NONE, CONTEXT_MENU_SHARE_SELECTED_TEXT, Menu.NONE, R.string.action_share_selected_text);
+        if (!DataUtils.isNullOrEmpty(mTerminalView.getStoredSelectedText()))
+            menu.add(Menu.NONE, CONTEXT_MENU_COPY_ID, Menu.NONE, R.string.action_copy);
         if (autoFillEnabled)
             menu.add(Menu.NONE, CONTEXT_MENU_AUTOFILL_USERNAME, Menu.NONE, R.string.action_autofill_username);
         if (autoFillEnabled)
@@ -783,6 +787,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 return true;
             case CONTEXT_MENU_SHARE_SELECTED_TEXT:
                 mTermuxTerminalViewClient.shareSelectedText();
+                return true;
+            case CONTEXT_MENU_COPY_ID:
+                String selectedText = mTerminalView.getStoredSelectedText();
+                if (selectedText != null)
+                    ShareUtils.copyTextToClipboard(this, selectedText);
                 return true;
             case CONTEXT_MENU_AUTOFILL_USERNAME:
                 mTerminalView.requestAutoFillUsername();
