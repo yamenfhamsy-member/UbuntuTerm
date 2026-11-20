@@ -21,12 +21,12 @@ report (`final-output/reports/`) and in the Telegram status message.
 
 ## Result of the last build
 
-Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/43340626539>
+Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/44736997568>
 
 | Check | Result |
 |---|---|
 | Pre-flight (shellcheck, actionlint, yamllint, javac type check) | Pass |
-| Android Lint (with the baseline of the ported API code) | Pass |
+| Android Lint (with the baseline of the ported API code) | Pass (0 errors, 6 warnings) |
 | Gradle build (`testReleaseUnitTest assembleRelease`) | Pass |
 | Package id `com.ubutumerm.app` | Pass |
 | Application label `UbuntuTerm` | Pass |
@@ -38,8 +38,8 @@ Workflow run: <https://github.com/yamenfhamsy-member/UbuntuTerm/actions/runs/433
 | No Termux bootstrap inside the APK | Pass (import from the device storage) |
 | Telegram delivery (`sendDocument` and `sendMessage`) | Pass |
 
-APK: `UbuntuTerm-arm64-v8a.apk`, 29,269,270 bytes,
-SHA-256 `9a262ae6e201e672a6b2e103bb63d3329710bc2364bfa34458f2512b499f19b7`.
+APK: `UbuntuTerm-arm64-v8a.apk`, 29,245,010 bytes,
+SHA-256 `98b33ceb48739434e772b65bf4e4f2dc3c58c070912d8587c7e5e29afa3408c1`.
 
 The bootstrap that has to be imported on the device is published as the artifact
 `bootstrap-aarch64` of the run
