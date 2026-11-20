@@ -26,6 +26,11 @@ import com.termux.app.ubuntu.UbuntuConstants;
 import com.termux.app.ubuntu.UbuntuGuestSetup;
 import com.termux.app.ubuntu.UbuntuRootFsManager;
 import com.termux.app.ubuntu.UbuntuSessionLauncher;
+import com.termux.app.ubuntu.GuestDistro;
+import com.termux.app.ubuntu.GuestDistros;
+import com.termux.app.ubuntu.GuestRootFsManager;
+import com.termux.app.ubuntu.GuestSetup;
+import com.termux.app.ubuntu.GuestSessionLauncher;
 import com.termux.shared.termux.plugins.TermuxPluginUtils;
 import com.termux.shared.data.IntentUtils;
 import com.termux.shared.net.uri.UriUtils;
@@ -111,6 +116,9 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     /** If the user has executed the {@link TERMUX_SERVICE#ACTION_STOP_SERVICE} intent. */
     boolean mWantsToStop = false;
 
+    /** The Linux distribution used as the PRoot guest (default: Ubuntu). */
+    private GuestDistro mSelectedDistro;
+
     private static final String LOG_TAG = "TermuxService";
 
     @Override
@@ -122,6 +130,11 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
         mProperties = TermuxAppSharedProperties.getProperties();
 
         mShellManager = TermuxShellManager.getShellManager();
+
+        // The Linux distribution used as the PRoot guest (default: Ubuntu).
+        TermuxAppSharedPreferences preferences = TermuxAppSharedPreferences.build(this, true);
+        String distroId = preferences.getGuestDistro();
+        mSelectedDistro = GuestDistros.contains(distroId) ? GuestDistros.get(distroId) : GuestDistros.defaultDistro();
 
         runStartForeground();
 
@@ -480,23 +493,25 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
 
         executionCommand.setShellCommandShellEnvironment = true;
 
-        // UbuntuTerm: a command with a path of the guest is executed inside the Ubuntu guest,
-        // a command of the host runtime keeps running in the host. The working directory of the
-        // host process has to exist on the device, so a guest path is replaced by the home
+        // UbuntuTerm: a command with a path of the guest is executed inside the selected guest
+        // distro, a command of the host runtime keeps running in the host. The working directory
+        // of the host process has to exist on the device, so a guest path is replaced by the home
         // directory of the application.
         HashMap<String, String> additionalEnvironment = null;
-        if (UbuntuSessionLauncher.shouldRunInsideGuest(executionCommand.executable)
-            && UbuntuRootFsManager.getState(this).installed && UbuntuSessionLauncher.isHostRuntimeReady()) {
-            String[] ubuntuCommand = UbuntuSessionLauncher.buildCommandForExecutable(this,
-                executionCommand.executable, executionCommand.arguments, executionCommand.workingDirectory);
+        if (GuestSessionLauncher.shouldRunInsideGuest(executionCommand.executable)
+            && GuestRootFsManager.getState(this, mSelectedDistro).installed
+            && GuestSessionLauncher.isHostRuntimeReady()) {
+            String[] ubuntuCommand = GuestSessionLauncher.buildCommandForExecutable(this,
+                mSelectedDistro, executionCommand.executable, executionCommand.arguments,
+                executionCommand.workingDirectory);
             executionCommand.executable = ubuntuCommand[0];
             executionCommand.arguments = Arrays.copyOfRange(ubuntuCommand, 1, ubuntuCommand.length);
             if (executionCommand.workingDirectory != null &&
                 !executionCommand.workingDirectory.startsWith("/data/data/"))
                 executionCommand.workingDirectory = TermuxConstants.TERMUX_HOME_DIR_PATH;
-            additionalEnvironment = UbuntuSessionLauncher.buildHostEnvironmentOverrides();
-            UbuntuGuestSetup.prepareSession(this);
-            Logger.logDebug(LOG_TAG, "Starting task inside the Ubuntu guest");
+            additionalEnvironment = GuestSessionLauncher.buildHostEnvironmentOverrides();
+            GuestSetup.prepareSession(this, mSelectedDistro);
+            Logger.logDebug(LOG_TAG, "Starting task inside the " + mSelectedDistro.name() + " guest");
         }
 
         if (Logger.getLogLevel() >= Logger.LOG_LEVEL_VERBOSE)
@@ -607,20 +622,21 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
             return null;
         }
 
-        // UbuntuTerm: the Ubuntu guest is the default environment. Only sessions without an
-        // explicit executable are started inside Ubuntu, the failsafe session keeps using the
-        // host (Termux) shell.
+        // UbuntuTerm: the selected guest distro is the default environment. Only sessions without
+        // an explicit executable are started inside the guest, the failsafe session keeps using
+        // the host (Termux) shell.
         HashMap<String, String> additionalEnvironment = null;
         if (executionCommand.executable == null && !executionCommand.isFailsafe) {
-            if (UbuntuRootFsManager.getState(this).installed && UbuntuSessionLauncher.isHostRuntimeReady()) {
-                String[] ubuntuCommand = UbuntuSessionLauncher.buildCommand(this);
-                executionCommand.executable = ubuntuCommand[0];
-                executionCommand.arguments = Arrays.copyOfRange(ubuntuCommand, 1, ubuntuCommand.length);
-                additionalEnvironment = UbuntuSessionLauncher.buildHostEnvironmentOverrides();
-                UbuntuGuestSetup.prepareSession(this);
-                Logger.logDebug(LOG_TAG, "Starting session inside the Ubuntu guest");
+            if (GuestRootFsManager.getState(this, mSelectedDistro).installed
+                && GuestSessionLauncher.isHostRuntimeReady()) {
+                String[] distroCommand = GuestSessionLauncher.buildCommand(this, mSelectedDistro);
+                executionCommand.executable = distroCommand[0];
+                executionCommand.arguments = Arrays.copyOfRange(distroCommand, 1, distroCommand.length);
+                additionalEnvironment = GuestSessionLauncher.buildHostEnvironmentOverrides();
+                GuestSetup.prepareSession(this, mSelectedDistro);
+                Logger.logDebug(LOG_TAG, "Starting session inside the " + mSelectedDistro.name() + " guest");
             } else {
-                Logger.logWarn(LOG_TAG, "Ubuntu guest is not available, falling back to the host shell");
+                Logger.logWarn(LOG_TAG, mSelectedDistro.name() + " guest is not available, falling back to the host shell");
             }
         }
 

@@ -16,13 +16,14 @@ import com.termux.shared.logger.Logger;
 
 import com.termux.R;
 import com.termux.shared.termux.TermuxConstants;
+import com.termux.shared.termux.settings.preferences.TermuxAppSharedPreferences;
 
 /**
  * Activity shown the first time UbuntuTerm is started.
  *
- * <p>It downloads the official Ubuntu base image, verifies it against the pinned SHA-256 and
- * installs it into the application data directory. The terminal is only opened after the
- * installation has been completed successfully.
+ * <p>It lets the user choose a Linux distribution (Ubuntu, Arch, Kali), downloads the official
+ * base image, verifies it against the pinned SHA-256 and installs it into the application data
+ * directory. The terminal is only opened after the installation has been completed successfully.
  */
 public class UbuntuInstallerActivity extends Activity {
 
@@ -42,6 +43,9 @@ public class UbuntuInstallerActivity extends Activity {
 
     /** Whether the installation is started automatically when the guest is missing. */
     private boolean mAutoInstall = true;
+
+    /** The distribution selected by the user (null until chosen). */
+    private GuestDistro mSelectedDistro;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,6 +71,15 @@ public class UbuntuInstallerActivity extends Activity {
             finish();
         });
 
+        // Let the user choose a distribution on first start.
+        TermuxAppSharedPreferences preferences = TermuxAppSharedPreferences.build(this, true);
+        String distroId = preferences.getGuestDistro();
+        if (GuestDistros.contains(distroId)) {
+            mSelectedDistro = GuestDistros.get(distroId);
+        } else {
+            showDistroSelectionDialog();
+        }
+
         showState();
     }
 
@@ -78,13 +91,15 @@ public class UbuntuInstallerActivity extends Activity {
     }
 
     private void showState() {
-        UbuntuRootFsManager.State state = UbuntuRootFsManager.getState(this);
+        GuestDistro distro = mSelectedDistro != null ? mSelectedDistro : GuestDistros.defaultDistro();
 
+        UbuntuRootFsManager.State state = UbuntuRootFsManager.getState(this);
         UbuntuRootFsManager.Source source = UbuntuRootFsManager.getSource(this);
+
         mDetails.setText(getString(R.string.ubuntu_installer_details,
-            UbuntuConstants.UBUNTU_VERSION,
-            UbuntuConstants.UBUNTU_CODENAME,
-            UbuntuConstants.UBUNTU_ARCH,
+            distro.version(),
+            distro.codename(),
+            distro.arch(),
             getString(source == UbuntuRootFsManager.Source.BUNDLED
                 ? R.string.ubuntu_installer_source_bundled
                 : R.string.ubuntu_installer_source_download)));
@@ -108,6 +123,25 @@ public class UbuntuInstallerActivity extends Activity {
             if (mAutoInstall)
                 startInstallation();
         }
+    }
+
+    /** Let the user choose which Linux distribution to install as the PRoot guest. */
+    private void showDistroSelectionDialog() {
+        java.util.List<GuestDistro> distros = GuestDistros.all();
+        String[] names = new String[distros.size()];
+        for (int i = 0; i < distros.size(); i++)
+            names[i] = distros.get(i).name() + " " + distros.get(i).version() + " (" + distros.get(i).arch() + ")";
+
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.ubuntu_installer_choose_distro)
+            .setItems(names, (dialog, which) -> {
+                mSelectedDistro = distros.get(which);
+                TermuxAppSharedPreferences preferences = TermuxAppSharedPreferences.build(UbuntuInstallerActivity.this, true);
+                preferences.setGuestDistro(mSelectedDistro.id());
+                showState();
+            })
+            .setCancelable(false)
+            .show();
     }
 
     /**
@@ -160,19 +194,21 @@ public class UbuntuInstallerActivity extends Activity {
         if (mInstalling)
             return;
 
+        GuestDistro distro = mSelectedDistro != null ? mSelectedDistro : GuestDistros.defaultDistro();
+
         mInstalling = true;
         mRetryButton.setEnabled(false);
         mProgress.setProgress(0);
         mStatus.setText(R.string.ubuntu_installer_status_starting);
 
-        new Thread(() -> UbuntuRootFsManager.install(this, new UbuntuRootFsManager.InstallListener() {
+        new Thread(() -> GuestRootFsManager.install(this, distro, new GuestRootFsManager.InstallListener() {
             @Override
-            public void onProgress(UbuntuRootFsManager.Phase phase, int percent, String message) {
+            public void onProgress(GuestRootFsManager.Phase phase, int percent, String message) {
                 mHandler.post(() -> {
                     mStatus.setText(message);
                     if (percent >= 0)
                         mProgress.setProgress(percent);
-                    if (phase == UbuntuRootFsManager.Phase.DONE)
+                    if (phase == GuestRootFsManager.Phase.DONE)
                         openTerminal();
                 });
             }

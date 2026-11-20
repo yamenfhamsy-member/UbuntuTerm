@@ -120,6 +120,16 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
     }
 
 
+    /** The Linux distribution used as the PRoot guest (default: "ubuntu"). */
+    public String getGuestDistro() {
+        return SharedPreferenceUtils.getString(mSharedPreferences, TERMUX_APP.KEY_GUEST_DISTRO, TERMUX_APP.DEFAULT_VALUE_GUEST_DISTRO, true);
+    }
+
+    public void setGuestDistro(String distroId) {
+        SharedPreferenceUtils.setString(mSharedPreferences, TERMUX_APP.KEY_GUEST_DISTRO, distroId, false);
+    }
+
+
 
     public boolean isSoftKeyboardEnabled() {
         return SharedPreferenceUtils.getBoolean(mSharedPreferences, TERMUX_APP.KEY_SOFT_KEYBOARD_ENABLED, TERMUX_APP.DEFAULT_VALUE_KEY_SOFT_KEYBOARD_ENABLED);

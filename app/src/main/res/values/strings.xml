@@ -259,6 +259,7 @@
     <!-- UbuntuTerm: Ubuntu guest installation -->
     <string name="ubuntu_installer_title">UbuntuTerm</string>
     <string name="ubuntu_installer_subtitle">تثبيت Ubuntu 26.04.1 LTS (Resolute Raccoon) — arm64</string>
+    <string name="ubuntu_installer_choose_distro">اختر توزيع لينكس كضيوف</string>
     <string name="ubuntu_installer_status_idle">في انتظار البدء…</string>
     <string name="ubuntu_installer_status_starting">جارٍ بدء التثبيت…</string>
     <string name="ubuntu_installer_status_missing">Ubuntu غير مثبت: %1$s</string>

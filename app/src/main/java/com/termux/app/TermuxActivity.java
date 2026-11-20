@@ -31,8 +31,13 @@ import android.widget.Toast;
 import com.termux.R;
 import com.termux.app.ubuntu.UbuntuBootstrapImportActivity;
 import com.termux.app.ubuntu.UbuntuInstallerActivity;
-import com.termux.app.ubuntu.UbuntuSessionLauncher;
 import com.termux.app.ubuntu.UbuntuRootFsManager;
+import com.termux.app.ubuntu.UbuntuSessionLauncher;
+import com.termux.app.ubuntu.GuestDistro;
+import com.termux.app.ubuntu.GuestDistros;
+import com.termux.app.ubuntu.GuestRootFsManager;
+import com.termux.app.ubuntu.GuestSetup;
+import com.termux.app.ubuntu.GuestSessionLauncher;
 import com.termux.app.api.file.FileReceiverActivity;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
@@ -190,6 +195,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private boolean mExtraKeysHideWhenKeyboardHidden;
     private int mPreviousNavBarHeight = -1;
     private boolean mKeyboardWasShown;
+    private GuestDistro mSelectedDistro;
 
     private int mNavBarHeight;
 
@@ -253,6 +259,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             mIsInvalidState = true;
             return;
         }
+
+        // The Linux distribution used as the PRoot guest (default: Ubuntu).
+        String distroId = mPreferences.getGuestDistro();
+        mSelectedDistro = GuestDistros.contains(distroId) ? GuestDistros.get(distroId) : GuestDistros.defaultDistro();
 
         setMargins();
 
@@ -491,7 +501,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 // UbuntuTerm: the host runtime (the Termux bootstrap with PRoot) is not part of
                 // the APK. The bootstrap is imported by the user from the device storage, so the
                 // import screen is opened before anything is installed.
-                if (!UbuntuSessionLauncher.isHostRuntimeReady()) {
+                if (!GuestSessionLauncher.isHostRuntimeReady()) {
                     Logger.logInfo(LOG_TAG, "No bootstrap installed, opening the import screen");
                     startActivity(new Intent(TermuxActivity.this, UbuntuBootstrapImportActivity.class));
                     return;
@@ -508,10 +518,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                                 .getBoolean(EXTRA_UBUNTU_HOST_MODE, false);
                         }
 
-                        // UbuntuTerm: the Ubuntu guest is the default environment, so it has to be
-                        // installed before the terminal is opened.
-                        if (!launchFailsafe && !UbuntuRootFsManager.getState(TermuxActivity.this).installed) {
-                            Logger.logInfo(LOG_TAG, "Ubuntu guest is not installed, opening the installer");
+                        // UbuntuTerm: the selected guest distro has to be installed before
+                        // the terminal is opened.
+                        if (!launchFailsafe && !GuestRootFsManager.getState(TermuxActivity.this, mSelectedDistro).installed) {
+                            Logger.logInfo(LOG_TAG, mSelectedDistro.name() + " guest is not installed, opening the installer");
                             startActivity(new Intent(TermuxActivity.this, UbuntuInstallerActivity.class));
                             return;
                         }

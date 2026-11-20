@@ -141,6 +141,14 @@ public final class TermuxPreferenceConstants {
         public static final String KEY_VOLUME_KEYS_SWAPPED = "volume_keys_swapped";
         public static final boolean DEFAULT_VALUE_VOLUME_KEYS_SWAPPED = false;
 
+
+        /**
+         * Defines the key for the Linux distribution used as the PRoot guest.
+         * Default is "ubuntu". Supported values: "ubuntu", "arch", "kali".
+         */
+        public static final String KEY_GUEST_DISTRO = "guest_distro";
+        public static final String DEFAULT_VALUE_GUEST_DISTRO = "ubuntu";
+
         /**
          * Defines the key for font size of termux terminal view.
          */
