@@ -16,6 +16,12 @@
             app:summaryOn="@string/termux_terminal_view_fullscreen_on"
             app:title="@string/termux_terminal_view_fullscreen_title" />
 
+        <SwitchPreferenceCompat
+            app:key="extra_keys_hide_when_keyboard_hidden"
+            app:summaryOff="@string/termux_terminal_view_extra_keys_hide_when_keyboard_hidden_off"
+            app:summaryOn="@string/termux_terminal_view_extra_keys_hide_when_keyboard_hidden_on"
+            app:title="@string/termux_terminal_view_extra_keys_hide_when_keyboard_hidden_title" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>

@@ -212,6 +212,11 @@
                 <string name="termux_terminal_view_fullscreen_off">The status bar will be shown.</string>
                 <string name="termux_terminal_view_fullscreen_on">The status bar will be hidden. The fullscreen property in termux.properties also enables this mode.</string>
 
+                <!-- Extra Keys Hide When Keyboard Hidden -->
+                <string name="termux_terminal_view_extra_keys_hide_when_keyboard_hidden_title">Hide extra keys when keyboard hidden</string>
+                <string name="termux_terminal_view_extra_keys_hide_when_keyboard_hidden_off">Extra keys row will always be shown.</string>
+                <string name="termux_terminal_view_extra_keys_hide_when_keyboard_hidden_on">Extra keys row will be hidden when the soft keyboard is hidden.</string>
+
 
 
     <!-- Termux:API App Preferences -->

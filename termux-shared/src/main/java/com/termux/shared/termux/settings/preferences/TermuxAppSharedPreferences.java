@@ -102,6 +102,15 @@ public class TermuxAppSharedPreferences extends AppSharedPreferences {
     }
 
 
+    public boolean isExtraKeysHideWhenKeyboardHidden() {
+        return SharedPreferenceUtils.getBoolean(mSharedPreferences, TERMUX_APP.KEY_EXTRA_KEYS_HIDE_WHEN_KEYBOARD_HIDDEN, TERMUX_APP.DEFAULT_VALUE_EXTRA_KEYS_HIDE_WHEN_KEYBOARD_HIDDEN);
+    }
+
+    public void setExtraKeysHideWhenKeyboardHidden(boolean value) {
+        SharedPreferenceUtils.setBoolean(mSharedPreferences, TERMUX_APP.KEY_EXTRA_KEYS_HIDE_WHEN_KEYBOARD_HIDDEN, value, false);
+    }
+
+
 
     public boolean isSoftKeyboardEnabled() {
         return SharedPreferenceUtils.getBoolean(mSharedPreferences, TERMUX_APP.KEY_SOFT_KEYBOARD_ENABLED, TERMUX_APP.DEFAULT_VALUE_KEY_SOFT_KEYBOARD_ENABLED);

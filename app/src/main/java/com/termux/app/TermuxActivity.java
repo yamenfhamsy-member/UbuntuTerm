@@ -186,6 +186,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      */
     private boolean mHasStorageAccess;
     private boolean mIsFullscreen;
+    private boolean mExtraKeysHideWhenKeyboardHidden;
+    private int mPreviousNavBarHeight = -1;
+    private boolean mKeyboardWasShown;
 
     private int mNavBarHeight;
 
@@ -258,7 +261,16 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         View content = findViewById(android.R.id.content);
         content.setOnApplyWindowInsetsListener((v, insets) -> {
-            mNavBarHeight = insets.getSystemWindowInsetBottom();
+            int bottom = insets.getSystemWindowInsetBottom();
+            if (mPreviousNavBarHeight >= 0 && mExtraKeysHideWhenKeyboardHidden) {
+                boolean keyboardShown = bottom > mPreviousNavBarHeight + 100;
+                if (keyboardShown != mKeyboardWasShown) {
+                    mKeyboardWasShown = keyboardShown;
+                    v.post(this::updateExtraKeysVisibility);
+                }
+            }
+            mPreviousNavBarHeight = bottom;
+            mNavBarHeight = bottom;
             return insets;
         });
 
@@ -266,6 +278,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (mIsFullscreen) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         }
+
+        mExtraKeysHideWhenKeyboardHidden = mPreferences.isExtraKeysHideWhenKeyboardHidden();
 
         setDrawerGestureExclusion();
 
@@ -354,6 +368,14 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (mPreferences != null && shouldUseFullscreen() != mIsFullscreen) {
             recreate();
             return;
+        }
+
+        boolean extraKeysHide = mPreferences.isExtraKeysHideWhenKeyboardHidden();
+        if (extraKeysHide != mExtraKeysHideWhenKeyboardHidden) {
+            mExtraKeysHideWhenKeyboardHidden = extraKeysHide;
+            updateExtraKeysVisibility();
+        } else if (mExtraKeysView != null) {
+            updateExtraKeysVisibility();
         }
     }
 
@@ -852,6 +874,15 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         } else {
             mTerminalView.setKeepScreenOn(true);
             mPreferences.setKeepScreenOn(true);
+        }
+    }
+
+    private void updateExtraKeysVisibility() {
+        if (mExtraKeysView == null) return;
+        if (mExtraKeysHideWhenKeyboardHidden && !mKeyboardWasShown) {
+            mExtraKeysView.setVisibility(android.view.View.GONE);
+        } else {
+            mExtraKeysView.setVisibility(android.view.View.VISIBLE);
         }
     }
 

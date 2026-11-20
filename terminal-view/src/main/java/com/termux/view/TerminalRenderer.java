@@ -2089,6 +2089,9 @@ public final class TerminalRenderer {
             int tmp = foreColor;
             foreColor = backColor;
             backColor = tmp;
+            if (foreColor == backColor) {
+                foreColor = 0x00FFFFFF ^ backColor;
+            }
         }
 
         float left = startColumn * mFontWidth;

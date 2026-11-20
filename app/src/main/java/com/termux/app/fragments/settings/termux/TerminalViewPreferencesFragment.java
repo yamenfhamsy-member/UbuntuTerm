@@ -60,6 +60,9 @@ class TerminalViewPreferencesDataStore extends PreferenceDataStore {
             case "fullscreen":
                     mPreferences.setFullscreenEnabled(value);
                 break;
+            case "extra_keys_hide_when_keyboard_hidden":
+                    mPreferences.setExtraKeysHideWhenKeyboardHidden(value);
+                break;
             default:
                 break;
         }

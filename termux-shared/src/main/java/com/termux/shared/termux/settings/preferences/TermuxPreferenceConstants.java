@@ -104,6 +104,12 @@ public final class TermuxPreferenceConstants {
 
 
         /**
+         * Defines the key for whether to hide the extra keys row when the soft keyboard is hidden.
+         */
+        public static final String KEY_EXTRA_KEYS_HIDE_WHEN_KEYBOARD_HIDDEN = "extra_keys_hide_when_keyboard_hidden";
+        public static final boolean DEFAULT_VALUE_EXTRA_KEYS_HIDE_WHEN_KEYBOARD_HIDDEN = false;
+
+        /**
          * Defines the key for whether to show terminal toolbar containing extra keys and text input field.
          */
         public static final String KEY_SHOW_TERMINAL_TOOLBAR = "show_extra_keys";
