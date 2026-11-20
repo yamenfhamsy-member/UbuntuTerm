@@ -9,6 +9,10 @@
     <uses-feature
         android:name="android.software.leanback"
         android:required="false" />
+    <!-- The camera is only used for the torch of the embedded Termux:API. -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
 
     <permission
         android:name="${TERMUX_PACKAGE_NAME}.permission.RUN_COMMAND"
