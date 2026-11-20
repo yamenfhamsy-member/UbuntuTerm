@@ -596,6 +596,12 @@ public final class TerminalView extends View {
     @Override
     public boolean onGenericMotionEvent(MotionEvent event) {
         if (mEmulator != null && event.isFromSource(InputDevice.SOURCE_MOUSE) && event.getAction() == MotionEvent.ACTION_SCROLL) {
+            float hscroll = event.getAxisValue(MotionEvent.AXIS_HSCROLL);
+            if (hscroll != 0.0f) {
+                // Horizontal mouse wheel: scroll left/right with arrow keys.
+                handleKeyCode(hscroll > 0.0f ? KeyEvent.KEYCODE_DPAD_RIGHT : KeyEvent.KEYCODE_DPAD_LEFT, 0);
+                return true;
+            }
             // Handle mouse wheel scrolling.
             boolean up = event.getAxisValue(MotionEvent.AXIS_VSCROLL) > 0.0f;
             doScroll(event, up ? -3 : 3);

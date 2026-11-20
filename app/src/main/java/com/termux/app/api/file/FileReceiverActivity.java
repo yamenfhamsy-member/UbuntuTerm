@@ -245,6 +245,7 @@ public class FileReceiverActivity extends AppCompatActivity {
         Intent executeIntent = new Intent(TERMUX_SERVICE.ACTION_SERVICE_EXECUTE, urlOpenerProgramUri);
         executeIntent.setClass(FileReceiverActivity.this, TermuxService.class);
         executeIntent.putExtra(TERMUX_SERVICE.EXTRA_ARGUMENTS, new String[]{url});
+        executeIntent.putExtra(TERMUX_SERVICE.EXTRA_BACKGROUND, true);
         startService(executeIntent);
         finish();
     }
